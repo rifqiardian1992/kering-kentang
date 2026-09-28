@@ -205,8 +205,12 @@
       $('infoEdit').classList.remove('hidden');
       $('aksiEdit').classList.remove('hidden');
       $('btnKirim').textContent = 'Simpan perubahan';
-    } else if (!D.kloter || !D.kloter.buka) {
+    } else if (!D.kloter || D.kloter.status !== 'Buka') {
       $('infoStok').textContent = '';
+      if (D.habis) {
+        $('infoKloter').textContent = D.habis;
+        $('tutup').innerHTML = '<h2>Stok sudah habis</h2><p>Terima kasih, semua stok kloter ini sudah terpesan. Info kloter berikutnya akan kami kabarkan lewat WhatsApp.</p>';
+      }
       return tampil('tutup');
     }
 
@@ -234,7 +238,13 @@
     const bebas = {}, buka = {}, sisa = {};
     D.paket.forEach((x) => { bebas[x] = k.stok[x] - pakai[x]; buka[x] = 0; });
     const kurangPaket = D.paket.filter((x) => bebas[x] < 0);
-    let perlu = bulat3(pakai.eceranKg);
+    let perlu = bulat3(pakai.eceranKg - (k.stok.ADJ || 0));
+    // Lebihan produksi (pcs toples) dipakai untuk pesanan toples di atas jumlah dasar.
+    const lebih = Math.max(0, k.stok.LEBIH || 0);
+    if (lebih > 0 && berat.LEBIH > 0) {
+      const pakaiLebih = Math.min(lebih, Math.max(0, (pakai.toples || 0) - (k.stok.DASAR || 0)));
+      perlu = bulat3(perlu - pakaiLebih * berat.LEBIH);
+    }
     k.urutan.forEach((x) => {
       if (perlu <= 1e-9 || bebas[x] <= 0 || !(berat[x] > 0)) return;
       const n = Math.min(bebas[x], Math.ceil(perlu / berat[x] - 1e-9));
@@ -249,7 +259,7 @@
 
   function statusStok(ubah) {
     const k = D.kloter;
-    const pakai = { eceranKg: k.pakaiLain.eceranKg };
+    const pakai = { eceranKg: k.pakaiLain.eceranKg, toples: k.pakaiLain.toples || 0 };
     D.paket.forEach((x) => { pakai[x] = k.pakaiLain[x]; });
     const q = Object.assign({}, qty, ubah || {});
     D.produk.forEach((p) => {
@@ -257,6 +267,7 @@
       if (!n) return;
       if (isPaket(p.kode)) pakai[p.kode] += n;
       else pakai.eceranKg += n * p.berat;
+      if (p.kode === D.kodeLebih) pakai.toples += n;
     });
     return alokasi(pakai);
   }
@@ -307,11 +318,16 @@
     renderProduk();
   }
 
+  const ongkirPesanan = () => (mode === 'edit' && D.order ? (D.order.ongkir || 0) : 0);
+
   function updateBar() {
     const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
     const jumlah = Object.values(qty).reduce((a, b) => a + b, 0);
-    $('barTotal').textContent = rp(total);
-    $('barKet').textContent = jumlah ? `${jumlah} item, sekitar ${kg(totalKg())} kg` : 'Belum ada pesanan';
+    const ongkir = ongkirPesanan();
+    $('barTotal').textContent = rp(total + ongkir);
+    $('barKet').textContent = jumlah
+      ? `${jumlah} item, sekitar ${kg(totalKg())} kg${ongkir ? ' + ongkir ' + rp(ongkir) : ''}`
+      : 'Belum ada pesanan';
     $('btnKirim').disabled = !jumlah || sibuk;
     renderInfoBayar();
     if (D.kloter) {
@@ -331,7 +347,10 @@
   // Ambil nomor rekening (deretan angka terpanjang) dari teks INFO_TRANSFER.
   const nomorRek = (t) => ((String(t || '').match(/\d[\d\s.-]{5,}\d/) || [''])[0]).replace(/\D/g, '');
 
-  // Kotak instruksi pembayaran sesuai cara bayar.
+  const PESAN_INFO_BAYAR = 'Info pembayaran (total, kode QRIS, atau nomor rekening) akan dikirim lewat WhatsApp saat pesanan diantar.';
+  const bolehInfoBayar = (o) => o.status === 'Diantar' || o.status === 'Selesai';
+
+  // Kotak instruksi pembayaran sesuai cara bayar (hanya untuk pesanan yang sudah Diantar).
   function kotakBayar(metode, total, idPesanan) {
     const b = (D && D.bayar) || {};
     const j = jenisBayar(metode);
@@ -379,16 +398,7 @@
     if (!el || !D) return;
     const pilih = document.querySelector('input[name=bayar]:checked');
     if (!pilih) { el.innerHTML = ''; return; }
-    const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
-    if (mode === 'edit' && D.order.statusBayar === 'Belum bayar') {
-      el.innerHTML = kotakBayar(pilih.value, total, D.order.id);
-      return;
-    }
-    const j = jenisBayar(pilih.value);
-    const teks = j === 'qris' ? 'Kode QRIS akan tampil setelah pesanan dikirim.'
-      : j === 'transfer' ? 'Nomor rekening tujuan akan tampil setelah pesanan dikirim.'
-      : j === 'cash' ? (D.bayar && D.bayar.cash) : '';
-    el.innerHTML = teks ? `<p class="petunjuk muted">${esc(teks)}</p>` : '';
+    el.innerHTML = `<p class="petunjuk muted">${esc(PESAN_INFO_BAYAR)}</p>`;
   }
 
   function tampilReadonly() {
@@ -404,8 +414,11 @@
         <h2 style="margin-top:0">Pesanan ${esc(o.id)}</h2>
         <p>Status: <strong>${esc(o.status === 'Baru' ? 'Menunggu konfirmasi' : o.status)}</strong>, ${esc(o.statusBayar.toLowerCase())}</p>
         <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
-        <div class="total-besar">${rp(o.total)}</div>
-        ${o.statusBayar === 'Belum bayar' && o.status !== 'Dibatalkan' ? kotakBayar(o.caraBayar, o.total, o.id) : ''}
+        ${o.ongkir > 0 ? `<p>Harga pesanan ${rp(o.total)}<br>Ongkir ${rp(o.ongkir)}</p>` : ''}
+        <div class="total-besar">${rp(o.tagihan != null ? o.tagihan : o.total)}</div>
+        ${o.statusBayar === 'Belum bayar' && o.status !== 'Dibatalkan'
+          ? (bolehInfoBayar(o) ? kotakBayar(o.caraBayar, o.tagihan != null ? o.tagihan : o.total, o.id) : `<p class="pesan info">${esc(PESAN_INFO_BAYAR)}</p>`)
+          : ''}
         <p class="muted">${esc(alasan)}</p>
       </div>`;
     tampil('readonly');
@@ -453,8 +466,9 @@
       <div class="ringkas">
         <h2 style="margin-top:0">${r.edit ? 'Perubahan tersimpan' : 'Pesanan terkirim'}</h2>
         <p>No. pesanan <strong>${esc(r.id)}</strong></p>
-        <div class="total-besar">${rp(r.total)}</div>
-        ${kotakBayar(caraBayar, r.total, r.id)}
+        ${r.ongkir > 0 ? `<p>Harga pesanan ${rp(r.total)} + ongkir ${rp(r.ongkir)}</p>` : ''}
+        <div class="total-besar">${rp(r.tagihan != null ? r.tagihan : r.total)}</div>
+        <p class="pesan info">${esc(PESAN_INFO_BAYAR)}</p>
         <p>${esc(infoWa)}</p>
         <p class="muted">Kami akan mengabari lewat WhatsApp saat pesanan dikonfirmasi.</p>
         <p style="margin-top:16px"><a class="btn" href="${esc(r.editUrl)}" target="_top">Lihat atau ubah pesanan</a></p>
