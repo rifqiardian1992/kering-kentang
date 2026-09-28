@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F2B632">
+  <title>Pesan Kering Kentang Tara</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // Link lama "?page=admin" diarahkan ke halaman penjual.
+    if (new URLSearchParams(location.search).get('page') === 'admin') location.replace('admin.html');
+  </script>
+  <script>
+    // Penangkap error paling awal: tetap jalan walaupun script utama gagal dibaca browser.
+    window.addEventListener('error', function (e) {
+      var el = document.getElementById('loading');
+      if (!el) return;
+      el.className = 'pesan err';
+      el.style.display = 'block';
+      el.textContent = 'Halaman error: ' + e.message + (e.lineno ? ' (baris ' + e.lineno + ')' : '');
+    });
+  </script>
+  <style>
+    .kepala { padding-bottom: 14px; border-bottom: 4px solid var(--kentang); }
+    .kepala .kloter { font-weight: 700; margin-top: 4px; }
+    .produk { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--garis); }
+    .produk .info { flex: 1; min-width: 0; }
+    .produk .nama { font-weight: 700; }
+    .produk .harga { font-family: var(--judul); font-weight: 800; font-size: 1.15rem; }
+    .produk .sisa { font-size: 0.85rem; color: var(--daun); font-weight: 700; }
+    .produk .sisa.habis { color: var(--sambal); }
+    .stepper { display: flex; align-items: center; border: 1.5px solid var(--garis); border-radius: 999px; flex-shrink: 0; }
+    .produk.pilih .stepper { border-color: var(--kentang); background: var(--kentang-muda); }
+    .stepper button {
+      width: 42px; height: 42px; padding: 0; background: transparent; color: var(--kecap);
+      font-size: 1.35rem; line-height: 1; border-radius: 999px;
+    }
+    .stepper button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .stepper input {
+      width: 48px; padding: 0; border: 0; background: transparent; text-align: center;
+      font-weight: 800; font-size: 1.05rem; box-shadow: none; -moz-appearance: textfield;
+    }
+    .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .pay { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pay label {
+      position: relative; border: 1.5px solid var(--garis); border-radius: 999px;
+      padding: 8px 16px; cursor: pointer; font-weight: 700;
+    }
+    .pay input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .pay label:has(input:checked) { background: var(--kecap); border-color: var(--kecap); color: #fff; }
+    .pay label:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--kentang); }
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; background: var(--kentang);
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    }
+    .bar .isi { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+    .bar .total { flex: 1; min-width: 0; }
+    .bar .angka { font-family: var(--judul); font-weight: 800; font-size: 1.7rem; line-height: 1.05; }
+    .bar .ket { font-size: 0.85rem; }
+    .ringkas { border: 1.5px solid var(--garis); border-radius: 14px; padding: 16px; margin-top: 18px; }
+    .ringkas ul { padding-left: 18px; margin: 8px 0; }
+    .ringkas .total-besar { font-family: var(--judul); font-weight: 800; font-size: 1.5rem; }
+    .aksi-bawah { margin-top: 28px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="kepala">
+      <h1 id="namaToko">Kering Kentang Tara</h1>
+      <p class="kloter" id="infoKloter"></p>
+      <p class="muted" id="infoStok"></p>
+    </header>
+
+    <div id="notif"></div>
+    <div id="loading" class="loading">Memuat menu…</div>
+
+    <section id="tutup" class="hidden">
+      <h2>PO sedang tutup</h2>
+      <p>Belum ada kloter yang menerima pesanan. Info kloter berikutnya akan kami kabarkan lewat WhatsApp.</p>
+    </section>
+
+    <section id="readonly" class="hidden"></section>
+
+    <section id="selesai" class="hidden"></section>
+
+    <section id="form" class="hidden">
+      <p class="pesan info hidden" id="infoEdit"></p>
+
+      <label class="f" for="wa">Nomor WhatsApp</label>
+      <input id="wa" type="tel" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx">
+      <p class="muted" id="waInfo">Konfirmasi dan rincian pesanan dikirim ke nomor ini.</p>
+
+      <label class="f" for="nama">Nama</label>
+      <input id="nama" autocomplete="name" placeholder="Nama untuk pesanan">
+
+      <h2>Pilih pesanan</h2>
+      <p class="pesan ok hidden" id="badge"></p>
+      <div id="produk"></div>
+
+      <label class="f" for="alamat">Alamat atau catatan</label>
+      <textarea id="alamat" rows="2" placeholder="Contoh: Blok A5 no. 27, antar sore"></textarea>
+
+      <h2>Cara bayar</h2>
+      <div class="pay" id="pay" role="radiogroup" aria-label="Cara bayar"></div>
+      <p class="muted">Pembayaran dilakukan setelah pesanan dikonfirmasi.</p>
+
+      <div class="aksi-bawah hidden" id="aksiEdit">
+        <button type="button" class="btn-ghost" id="btnBatal">Batalkan pesanan</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="bar hidden" id="bar">
+    <div class="isi">
+      <div class="total">
+        <div class="ket" id="barKet">Belum ada pesanan</div>
+        <div class="angka" id="barTotal">Rp0</div>
+      </div>
+      <button type="button" class="btn" id="btnKirim" disabled>Kirim pesanan</button>
+    </div>
+  </div>
+
+<script>
+  const Q = new URLSearchParams(location.search);
+  const bersih = (v) => String(v || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
+  const INIT = { id: bersih(Q.get('id')), t: bersih(Q.get('t')) };
+  const $ = (id) => document.getElementById(id);
+  let D = null, qty = {}, jenis = 'normal', mode = 'baru', sibuk = false;
+
+  const ribuan = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const rp = (n) => 'Rp' + ribuan(n);
+  const kg = (n) => String(Math.round((n || 0) * 100) / 100).replace('.', ',');
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const errMsg = (e) => String(e && e.message ? e.message : e).replace(/^Error:\s*/, '');
+
+  // ===== GANTI jika link Apps Script (/exec) berubah =====
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyhW9KrovtOrKoJYZmy5jC3jQKpwqGOjnuDoMaZQtI6PLo2Wkb087QeFA3JQkBpBMTHpQ/exec';
+
+  async function call(fn, ...args) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ fn: fn, args: args }),
+        signal: ctrl.signal
+      });
+      if (!res.ok) throw new Error('Server bermasalah (kode ' + res.status + '). Coba lagi sebentar.');
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || 'Terjadi kesalahan di server.');
+      return j.data;
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('Server tidak merespons. Periksa koneksi internet lalu coba lagi.');
+      if (e instanceof TypeError) throw new Error('Tidak bisa terhubung ke server. Periksa koneksi internet, lalu coba lagi.');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function notif(msg, tipe) {
+    $('notif').innerHTML = msg ? `<div class="pesan ${tipe || 'err'}" role="alert">${esc(msg)}</div>` : '';
+    if (msg) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function tampil(id) {
+    ['loading', 'tutup', 'readonly', 'selesai', 'form'].forEach((s) => $(s).classList.toggle('hidden', s !== id));
+    $('bar').classList.toggle('hidden', id !== 'form');
+  }
+
+  async function muat() {
+    tampil('loading');
+    try {
+      D = await call('apiOrderPage', INIT.id, INIT.t);
+    } catch (e) {
+      $('loading').classList.add('hidden');
+      notif(errMsg(e));
+      return;
+    }
+    qty = {};
+    if (D.toko) { $('namaToko').textContent = D.toko; document.title = 'Pesan ' + D.toko; }
+    $('infoKloter').textContent = D.kloter ? D.kloter.nama : '';
+
+    if (D.order) {
+      mode = 'edit';
+      jenis = D.order.jenis;
+      if (!D.order.editable) return tampilReadonly();
+      D.order.items.forEach((i) => { qty[i.kode] = i.qty; });
+      $('wa').value = D.order.wa;
+      $('wa').readOnly = true;
+      $('waInfo').textContent = 'Nomor WhatsApp tidak bisa diubah untuk pesanan ini.';
+      $('nama').value = D.order.nama;
+      $('alamat').value = D.order.alamat;
+      $('infoEdit').textContent = `Anda sedang mengubah pesanan ${D.order.id}. Perubahan bisa dilakukan selama pesanan belum diproses.`;
+      $('infoEdit').classList.remove('hidden');
+      $('aksiEdit').classList.remove('hidden');
+      $('btnKirim').textContent = 'Simpan perubahan';
+    } else if (!D.kloter || !D.kloter.buka) {
+      $('infoStok').textContent = '';
+      return tampil('tutup');
+    }
+
+    $('pay').innerHTML = D.caraBayar.map((c) => `
+      <label><input type="radio" name="bayar" value="${esc(c)}" ${D.order && D.order.caraBayar === c ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('');
+    setJenis(jenis);
+    tampil('form');
+  }
+
+  function setJenis(j) {
+    jenis = j === 'reseller' ? 'reseller' : 'normal';
+    const diskon = D.produk.filter((p) => p.harga.reseller < p.harga.normal).map((p) => p.nama);
+    $('badge').textContent = 'Harga reseller berlaku untuk ' + diskon.join(' dan ') + '.';
+    $('badge').classList.toggle('hidden', jenis !== 'reseller' || !diskon.length);
+    renderProduk();
+  }
+
+  const harga = (p) => (jenis === 'reseller' ? Math.min(p.harga.reseller, p.harga.normal) : p.harga.normal);
+  const bulat3 = (n) => Math.round((n || 0) * 1000) / 1000;
+  const isPaket = (kode) => D.paket.includes(kode);
+
+  // Sama dengan alokasi_ di Code.gs: toples & pouch diisi dari kemasan kiloan/setengah yang tersisa.
+  function alokasi(pakai) {
+    const k = D.kloter, berat = k.berat;
+    const bebas = {}, buka = {}, sisa = {};
+    D.paket.forEach((x) => { bebas[x] = k.stok[x] - pakai[x]; buka[x] = 0; });
+    const kurangPaket = D.paket.filter((x) => bebas[x] < 0);
+    let perlu = bulat3(pakai.eceranKg);
+    k.urutan.forEach((x) => {
+      if (perlu <= 1e-9 || bebas[x] <= 0 || !(berat[x] > 0)) return;
+      const n = Math.min(bebas[x], Math.ceil(perlu / berat[x] - 1e-9));
+      buka[x] = n;
+      perlu = bulat3(perlu - n * berat[x]);
+    });
+    const lepas = perlu < 0 ? -perlu : 0;
+    let kgEceran = lepas;
+    D.paket.forEach((x) => { sisa[x] = Math.max(0, bebas[x]) - buka[x]; kgEceran += sisa[x] * berat[x]; });
+    return { ok: !kurangPaket.length && perlu <= 1e-9, sisa, kgEceran: bulat3(kgEceran) };
+  }
+
+  function statusStok(ubah) {
+    const k = D.kloter;
+    const pakai = { eceranKg: k.pakaiLain.eceranKg };
+    D.paket.forEach((x) => { pakai[x] = k.pakaiLain[x]; });
+    const q = Object.assign({}, qty, ubah || {});
+    D.produk.forEach((p) => {
+      const n = q[p.kode] || 0;
+      if (!n) return;
+      if (isPaket(p.kode)) pakai[p.kode] += n;
+      else pakai.eceranKg += n * p.berat;
+    });
+    return alokasi(pakai);
+  }
+
+  const bisaJadi = (kode, n) => statusStok({ [kode]: n }).ok;
+  const totalKg = () => D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * p.berat, 0);
+
+  // Berapa pcs lagi yang masih bisa dipesan untuk produk ini (sudah memperhitungkan isi keranjang).
+  function maksTambah(kode) {
+    const q = qty[kode] || 0;
+    let n = 0;
+    while (n < 999 && bisaJadi(kode, q + n + 1)) n++;
+    return n;
+  }
+
+  function renderProduk() {
+    $('produk').innerHTML = D.produk.map((p) => {
+      const q = qty[p.kode] || 0;
+      const sisa = p.aktif ? maksTambah(p.kode) : 0;
+      const bisaTambah = sisa > 0;
+      const teksSisa = `Tersisa ${sisa} pcs`;
+      return `
+        <div class="produk ${q ? 'pilih' : ''}">
+          <div class="info">
+            <div class="nama">${esc(p.nama)}</div>
+            <div class="harga">${rp(harga(p))}${harga(p) < p.harga.normal ? ` <s class="muted">${rp(p.harga.normal)}</s>` : ''}</div>
+            ${!p.aktif ? '<div class="muted">Sudah tidak dijual, hanya bisa dikurangi</div>' : ''}
+            ${p.aktif ? `<div class="sisa ${bisaTambah ? '' : 'habis'}">${!bisaTambah && !q ? 'Stok habis' : teksSisa}</div>` : ''}
+          </div>
+          <div class="stepper">
+            <button type="button" data-k="${esc(p.kode)}" data-d="-1" aria-label="Kurangi ${esc(p.nama)}" ${q ? '' : 'disabled'}>−</button>
+            <input type="number" inputmode="numeric" min="0" data-k="${esc(p.kode)}" value="${q}" aria-label="Jumlah ${esc(p.nama)}">
+            <button type="button" data-k="${esc(p.kode)}" data-d="1" aria-label="Tambah ${esc(p.nama)}" ${bisaTambah ? '' : 'disabled'}>+</button>
+          </div>
+        </div>`;
+    }).join('');
+    updateBar();
+  }
+
+  function setQty(kode, nilai) {
+    const p = D.produk.find((x) => x.kode === kode);
+    if (!p) return;
+    let n = Math.max(0, Math.floor(Number(nilai) || 0));
+    const lama = qty[kode] || 0;
+    if (!p.aktif && n > lama) n = lama;
+    while (n > lama && !bisaJadi(kode, n)) n--;
+    if (n) qty[kode] = n; else delete qty[kode];
+    renderProduk();
+  }
+
+  function updateBar() {
+    const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
+    const jumlah = Object.values(qty).reduce((a, b) => a + b, 0);
+    $('barTotal').textContent = rp(total);
+    $('barKet').textContent = jumlah ? `${jumlah} item, sekitar ${kg(totalKg())} kg` : 'Belum ada pesanan';
+    $('btnKirim').disabled = !jumlah || sibuk;
+    if (D.kloter) {
+      const bag = D.produk.filter((p) => isPaket(p.kode)).map((p) => `${p.nama} ${maksTambah(p.kode)} pcs`);
+      $('infoStok').textContent = 'Sisa stok: ' + bag.join(', ');
+    }
+  }
+
+  function tampilReadonly() {
+    const o = D.order;
+    let alasan = 'Pesanan sudah diproses sehingga tidak bisa diubah lagi. Hubungi penjual lewat WhatsApp jika perlu perubahan.';
+    if (o.status === 'Dibatalkan') alasan = 'Pesanan ini sudah dibatalkan.';
+    else if (D.kloter && !D.kloter.buka && (o.status === 'Baru' || o.status === 'Dikonfirmasi')) {
+      alasan = 'PO kloter ini sudah ditutup sehingga pesanan tidak bisa diubah lagi. Hubungi penjual jika perlu perubahan.';
+    }
+    $('infoStok').textContent = '';
+    $('readonly').innerHTML = `
+      <div class="ringkas">
+        <h2 style="margin-top:0">Pesanan ${esc(o.id)}</h2>
+        <p>Status: <strong>${esc(o.status === 'Baru' ? 'Menunggu konfirmasi' : o.status)}</strong>, ${esc(o.statusBayar.toLowerCase())}</p>
+        <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
+        <div class="total-besar">${rp(o.total)}</div>
+        <p class="muted">${esc(alasan)}</p>
+      </div>`;
+    tampil('readonly');
+  }
+
+  async function kirim() {
+    if (sibuk) return;
+    const bayar = document.querySelector('input[name=bayar]:checked');
+    const data = {
+      id: mode === 'edit' ? D.order.id : '',
+      token: INIT.t,
+      wa: $('wa').value,
+      nama: $('nama').value,
+      alamat: $('alamat').value,
+      caraBayar: bayar ? bayar.value : '',
+      items: qty
+    };
+    if (mode !== 'edit' && data.wa.replace(/\D/g, '').length < 9) return notif('Isi nomor WhatsApp yang aktif, contoh 081234567890.');
+    if (!data.nama.trim()) return notif('Isi nama untuk pesanan.');
+    if (!Object.keys(qty).length) return notif('Pilih minimal satu produk.');
+    if (!data.caraBayar) return notif('Pilih cara bayar.');
+
+    sibuk = true;
+    const label = $('btnKirim').textContent;
+    $('btnKirim').disabled = true;
+    $('btnKirim').textContent = 'Mengirim…';
+    notif('');
+    try {
+      const r = await call('apiSubmitOrder', data);
+      tampilSelesai(r);
+    } catch (e) {
+      notif(errMsg(e));
+    } finally {
+      sibuk = false;
+      $('btnKirim').textContent = label;
+      if (D) updateBar();
+    }
+  }
+
+  function tampilSelesai(r) {
+    const infoWa = r.waTerkirim
+      ? 'Rincian pesanan dan link untuk mengubahnya sudah kami kirim ke WhatsApp Anda.'
+      : 'WhatsApp belum terkirim. Simpan link di bawah ini untuk melihat atau mengubah pesanan.';
+    $('selesai').innerHTML = `
+      <div class="ringkas">
+        <h2 style="margin-top:0">${r.edit ? 'Perubahan tersimpan' : 'Pesanan terkirim'}</h2>
+        <p>No. pesanan <strong>${esc(r.id)}</strong></p>
+        <div class="total-besar">${rp(r.total)}</div>
+        <p>${esc(infoWa)}</p>
+        <p class="muted">Kami akan mengabari lewat WhatsApp saat pesanan dikonfirmasi.</p>
+        <p style="margin-top:16px"><a class="btn" href="${esc(r.editUrl)}" target="_top">Lihat atau ubah pesanan</a></p>
+      </div>`;
+    $('infoStok').textContent = '';
+    tampil('selesai');
+    window.scrollTo({ top: 0 });
+  }
+
+  async function batal() {
+    if (!confirm('Batalkan pesanan ini? Pesanan yang dibatalkan tidak bisa diaktifkan kembali dari halaman ini.')) return;
+    $('btnBatal').disabled = true;
+    try {
+      await call('apiBatalkanPesanan', D.order.id, INIT.t);
+      await muat();
+      notif('Pesanan sudah dibatalkan.', 'ok');
+    } catch (e) {
+      notif(errMsg(e));
+    } finally {
+      $('btnBatal').disabled = false;
+    }
+  }
+
+  $('produk').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    setQty(b.dataset.k, (qty[b.dataset.k] || 0) + Number(b.dataset.d));
+  });
+  $('produk').addEventListener('change', (e) => {
+    if (e.target.matches('input[data-k]')) setQty(e.target.dataset.k, e.target.value);
+  });
+  $('wa').addEventListener('change', async () => {
+    if (mode === 'edit') return;
+    try {
+      const r = await call('apiCekPelanggan', $('wa').value);
+      if (r.valid) setJenis(r.jenisHarga);
+    } catch (e) { /* abaikan, harga tetap dihitung ulang di server */ }
+  });
+  $('btnKirim').addEventListener('click', kirim);
+  $('btnBatal').addEventListener('click', batal);
+
+  muat();
+</script>
+</body>
+</html>
