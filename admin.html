@@ -90,6 +90,13 @@
     .tabel .kanan { text-align: right; }
     .tabel tfoot td { font-weight: 800; border-bottom: 0; }
     .btn-hapus { background: none; color: var(--sambal); padding: 4px 6px; font-size: 0.85rem; }
+    .btn-edit { background: none; color: var(--kecap); padding: 4px 6px; font-size: 0.85rem; text-decoration: underline; }
+    .btn-simpan { background: var(--sambal); color: #fff; padding: 5px 10px; font-size: 0.85rem; border-radius: 8px; }
+    .tabel .aksi-baris { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+    .tabel .edit-baris td { background: var(--kentang-muda); vertical-align: middle; }
+    .tabel .edit-baris input { padding: 6px 8px; font-size: 0.9rem; min-width: 80px; }
+    .tabel .edit-baris input[data-e="item"] { min-width: 170px; }
+    .tabel .edit-baris input[data-e="tanggal"] { min-width: 130px; }
     details.tambah { margin-top: 12px; border: 1.5px dashed var(--garis); border-radius: 12px; padding: 10px 12px; }
     details.tambah summary { cursor: pointer; font-weight: 700; }
     details.tambah .btn { margin-top: 10px; }
@@ -393,6 +400,7 @@
   }
 
   let modalBaru = [];
+  let editModal = null; // { attr, key } baris modal yang sedang diedit
   let draftKloter = { nama: '', kilo: '', setengah: '' };
 
   function simpanDraft() {
@@ -429,18 +437,42 @@
   function tabelModal(list, attr) {
     if (!list.length) return '<p class="muted">Belum ada item modal.</p>';
     const total = list.reduce((a, m) => a + Number(m.harga) * Number(m.jumlah), 0);
-    return `
-      <div class="tabel-wrap"><table class="tabel">
-        <thead><tr><th>No</th><th>Tanggal</th><th>Item</th><th class="kanan">Harga</th><th>Satuan</th>
-          <th class="kanan">Jumlah</th><th class="kanan">Total</th><th>Ket.</th><th></th></tr></thead>
-        <tbody>${list.map((m, i) => `
+    const baris = (m, i) => {
+      const key = String(m.id !== undefined ? m.id : i);
+      if (editModal && editModal.attr === attr && editModal.key === key) {
+        return `
+          <tr class="edit-baris">
+            <td>${i + 1}</td>
+            <td><input type="date" data-e="tanggal" value="${esc(m.tanggal)}" aria-label="Tanggal"></td>
+            <td><input data-e="item" value="${esc(m.item)}" aria-label="Item modal"></td>
+            <td><input type="number" step="any" inputmode="decimal" data-e="harga" value="${esc(m.harga)}" aria-label="Harga satuan"></td>
+            <td><input data-e="satuan" value="${esc(m.satuan)}" aria-label="Satuan"></td>
+            <td><input type="number" step="any" inputmode="decimal" data-e="jumlah" value="${esc(m.jumlah)}" aria-label="Jumlah"></td>
+            <td class="kanan muted">otomatis</td>
+            <td><input data-e="ket" value="${esc(m.ket)}" aria-label="Keterangan"></td>
+            <td><div class="aksi-baris">
+              <button type="button" class="btn-simpan" data-simpan-edit="${esc(attr)}" data-key="${esc(key)}">Simpan</button>
+              <button type="button" class="btn-hapus" data-batal-edit>Batal</button>
+            </div></td>
+          </tr>`;
+      }
+      return `
           <tr>
             <td>${i + 1}</td><td>${esc(tglPendek(m.tanggal))}</td><td>${esc(m.item)}</td>
             <td class="kanan">${ribuan(Number(m.harga))}</td><td>${esc(m.satuan || '-')}</td>
             <td class="kanan">${esc(String(m.jumlah).replace('.', ','))}</td>
             <td class="kanan">${ribuan(Number(m.harga) * Number(m.jumlah))}</td><td>${esc(m.ket)}</td>
-            <td><button type="button" class="btn-hapus" ${attr}="${esc(m.id !== undefined ? m.id : i)}" aria-label="Hapus ${esc(m.item)}">Hapus</button></td>
-          </tr>`).join('')}</tbody>
+            <td><div class="aksi-baris">
+              <button type="button" class="btn-edit" data-edit="${esc(attr)}" data-key="${esc(key)}" aria-label="Edit ${esc(m.item)}">Edit</button>
+              <button type="button" class="btn-hapus" ${attr}="${esc(key)}" aria-label="Hapus ${esc(m.item)}">Hapus</button>
+            </div></td>
+          </tr>`;
+    };
+    return `
+      <div class="tabel-wrap"><table class="tabel">
+        <thead><tr><th>No</th><th>Tanggal</th><th>Item</th><th class="kanan">Harga</th><th>Satuan</th>
+          <th class="kanan">Jumlah</th><th class="kanan">Total</th><th>Ket.</th><th></th></tr></thead>
+        <tbody>${list.map(baris).join('')}</tbody>
         <tfoot><tr><td colspan="6">Total modal</td><td class="kanan">${rp(total)}</td><td colspan="2"></td></tr></tfoot>
       </table></div>`;
   }
@@ -568,9 +600,53 @@
   }
 
   $('tabKloter').addEventListener('click', async (e) => {
+    // Edit baris modal
+    const tEdit = e.target.closest('[data-edit]');
+    if (tEdit) {
+      simpanDraft();
+      editModal = { attr: tEdit.dataset.edit, key: tEdit.dataset.key };
+      renderKloter();
+      const input = document.querySelector('.edit-baris input[data-e="item"]');
+      if (input) input.focus();
+      return;
+    }
+    if (e.target.closest('[data-batal-edit]')) {
+      simpanDraft();
+      editModal = null;
+      return renderKloter();
+    }
+    const tSimpan = e.target.closest('[data-simpan-edit]');
+    if (tSimpan) {
+      const tr = tSimpan.closest('tr');
+      const m = {};
+      tr.querySelectorAll('[data-e]').forEach((el) => { m[el.dataset.e] = el.value.trim(); });
+      const salah = cekModal(m);
+      if (salah) return toast(salah, true);
+      simpanDraft();
+      if (tSimpan.dataset.simpanEdit === 'data-hapus-baru') {
+        modalBaru[Number(tSimpan.dataset.key)] = m;
+        editModal = null;
+        toast('Item modal diperbarui.');
+        return renderKloter();
+      }
+      tSimpan.disabled = true;
+      tSimpan.textContent = 'Menyimpan…';
+      try {
+        await call('apiUbahModal', PIN, tSimpan.dataset.key, m);
+        editModal = null;
+        toast('Item modal diperbarui.');
+        await muat();
+      } catch (err) {
+        toast(errMsg(err), true);
+        tSimpan.disabled = false;
+        tSimpan.textContent = 'Simpan';
+      }
+      return;
+    }
     const baru = e.target.closest('[data-hapus-baru]');
     if (baru) {
       simpanDraft();
+      editModal = null;
       modalBaru.splice(Number(baru.dataset.hapusBaru), 1);
       return renderKloter();
     }
@@ -673,7 +749,7 @@
     }
   });
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderTab(); }));
-  $('selKloter').addEventListener('change', (e) => { kloterId = e.target.value; muat(); });
+  $('selKloter').addEventListener('change', (e) => { kloterId = e.target.value; editModal = null; muat(); });
   $('btnMuat').addEventListener('click', () => { $('btnMuat').disabled = true; muat().finally(() => { $('btnMuat').disabled = false; }); });
   $('btnLogin').addEventListener('click', login);
   $('pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
