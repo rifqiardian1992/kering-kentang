@@ -59,6 +59,12 @@
     .kontrol label { font-size: 0.8rem; font-weight: 700; color: var(--abu); }
     .kontrol select, .kontrol input { margin-top: 2px; padding: 8px 10px; }
     .aksi { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+    .ongkir-baris { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-top: 10px; }
+    .ongkir-baris .cek { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; padding: 8px 0; cursor: pointer; }
+    .ongkir-baris .cek input { width: 20px; height: 20px; margin: 0; accent-color: var(--sambal); }
+    .ongkir-baris .nominal { font-size: 0.8rem; font-weight: 700; color: var(--abu); max-width: 180px; }
+    .ongkir-baris .nominal input { margin-top: 2px; padding: 8px 10px; }
+    .order .sub-total { font-size: 0.8rem; color: var(--abu); text-align: right; }
     .aksi button { padding: 9px 16px; }
 
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end; }
@@ -232,7 +238,7 @@
 
   function render() {
     $('selKloter').innerHTML = A.kloters.length
-      ? A.kloters.map((k) => `<option value="${esc(k.id)}" ${k.id === kloterId ? 'selected' : ''}>${esc(k.nama)}${k.status === 'Buka' ? ' (buka)' : ''}</option>`).join('')
+      ? A.kloters.map((k) => `<option value="${esc(k.id)}" ${k.id === kloterId ? 'selected' : ''}>${esc(k.nama)}${k.status !== 'Tutup' ? ' (' + k.status.toLowerCase() + ')' : ''}</option>`).join('')
       : '<option>Belum ada kloter</option>';
     renderRingkasan();
     renderTab();
@@ -256,6 +262,11 @@
             <div class="angka ${p.sisa <= 0 ? 'minus' : ''}">${p.sisa}</div>
             <div>${esc(p.nama)}<br><span class="muted">pcs tersisa dari ${p.stok}</span></div>
           </div>`).join('')}
+        ${k.lebih.stok > 0 ? `
+          <div class="stok-item">
+            <div class="angka ${k.lebih.sisa <= 0 ? 'minus' : ''}">${k.lebih.sisa}</div>
+            <div>Lebihan toples<br><span class="muted">pcs tersisa dari ${k.lebih.stok}</span></div>
+          </div>` : ''}
         ${k.eceran.map((e) => `
           <div class="stok-item kecil">
             <div class="angka">±${e.n}</div>
@@ -263,6 +274,7 @@
           </div>`).join('')}
       </div>
       <p class="muted">Toples dan pouch diisi dari kemasan kiloan dan setengah kilo yang tersisa${k.lepas > 0 ? `, ditambah ${kg(k.lepas)} kg dari kemasan yang sudah dibuka` : ''}.</p>
+      ${k.status === 'Habis' ? '<p class="pesan info"><strong>Stok habis.</strong> Kloter otomatis berhenti menerima pesanan baru. Pembeli masih bisa mengurangi atau membatalkan pesanan. Jika ada lebihan produksi, isi di tab Kloter & stok agar kloter terbuka lagi.</p>' : ''}
       ${k.kurang ? '<p class="pesan err">Pesanan melebihi stok. Tambah sisa pcs di tab Kloter & stok, atau kurangi pesanan.</p>' : ''}
       <div class="angka-grid">
         <div>Pesanan aktif<b>${r.jumlah}</b></div>
@@ -270,12 +282,13 @@
         <div>Sudah dibayar<b>${rp(r.lunas)}</b></div>
         <div>Belum dibayar<b>${rp(r.belum)}</b></div>
         <div>Total modal<b>${rp(r.modal)}</b></div>
+        ${r.ongkir > 0 ? `<div>Ongkir ditagihkan<b>${rp(r.ongkir)}</b><span class="muted">tidak dihitung ke keuntungan</span></div>` : ''}
         <div class="untung">Keuntungan saat ini<b class="${r.untung < 0 ? 'minus' : ''}">${rp(r.untung)}</b><span class="muted">sudah dibayar dikurangi modal</span></div>
         <div>Estimasi keuntungan<b class="${r.estimasi < 0 ? 'minus' : ''}">${rp(r.estimasi)}</b><span class="muted">jika semua pesanan lunas</span></div>
       </div>
       <div class="rekap">
         <div><h3>Jumlah per produk</h3>${daftar(r.perProduk, (v) => v)}</div>
-        <div><h3>Pembayaran masuk</h3>${daftar(r.perBayar, rp)}</div>
+        <div><h3>Uang masuk${r.ongkirLunas > 0 ? ' (termasuk ongkir)' : ''}</h3>${daftar(r.perBayar, rp)}</div>
       </div>`;
   }
 
@@ -309,6 +322,8 @@
 
   function kartuPesanan(o) {
     const kelas = o.status === 'Baru' ? 'baru' : (o.status === 'Dibatalkan' ? 'batal' : '');
+    const adaOngkir = o.ongkir > 0;
+    const kunciOngkir = o.statusBayar === 'Lunas';
     return `
       <article class="order ${kelas}" data-id="${esc(o.id)}">
         <div class="kop">
@@ -316,7 +331,10 @@
             <div class="nama">${esc(o.nama)} ${o.jenis === 'reseller' ? '<span class="badge">reseller</span>' : ''}</div>
             <div class="muted">${esc(o.id)}, dipesan ${esc(o.waktu)}${o.diubah && o.diubah !== o.waktu ? ', diubah ' + esc(o.diubah) : ''}</div>
           </div>
-          <div class="total">${rp(o.total)}</div>
+          <div>
+            <div class="total">${rp(o.tagihan != null ? o.tagihan : o.total)}</div>
+            ${adaOngkir ? `<div class="sub-total">produk ${rp(o.total)} + ongkir ${rp(o.ongkir)}</div>` : ''}
+          </div>
         </div>
         <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
         <div class="muted">${kg(o.kg)} kg${o.alamat ? '. ' + esc(o.alamat) : ''}</div>
@@ -324,7 +342,12 @@
           <label>Status<select data-f="status">${opsi(A.status, o.status)}</select></label>
           <label>Pembayaran<select data-f="statusBayar">${opsi(A.statusBayar, o.statusBayar)}</select></label>
           <label>Cara bayar<select data-f="caraBayar">${opsi(A.caraBayar, o.caraBayar)}</select></label>
-          <label>Tanggal antar<input type="date" data-f="tglAntar" value="${esc(o.tglAntar)}"></label>
+          <label>Tanggal antar<input type="date" data-f="tglAntar" value="${esc(o.tglAntar)}" ${o.status === 'Diantar' ? '' : 'disabled'} title="Bisa diisi saat status Diantar"></label>
+        </div>
+        <div class="ongkir-baris">
+          <label class="cek"><input type="checkbox" data-f="adaOngkir" ${adaOngkir ? 'checked' : ''} ${kunciOngkir ? 'disabled' : ''}> Ada ongkir?</label>
+          <label class="nominal ${adaOngkir ? '' : 'hidden'}">Ongkir (Rp)<input type="number" data-f="ongkir" min="0" step="500" inputmode="numeric" placeholder="15000" value="${adaOngkir ? o.ongkir : ''}" ${kunciOngkir ? 'disabled' : ''}></label>
+          ${kunciOngkir && adaOngkir ? '<span class="muted">Pesanan sudah lunas, ongkir tidak bisa diubah.</span>' : ''}
         </div>
         <div class="aksi">
           <button type="button" class="btn" data-act="simpan">Simpan</button>
@@ -336,7 +359,9 @@
 
   async function simpanPesanan(card, btn) {
     const data = {};
-    card.querySelectorAll('[data-f]').forEach((el) => { data[el.dataset.f] = el.value; });
+    card.querySelectorAll('[data-f]').forEach((el) => { data[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value; });
+    if (data.status === 'Selesai' && !data.tglAntar) return toast('Isi tanggal antar dulu (pilih status Diantar) sebelum mengubah ke Selesai.', true);
+    if (data.adaOngkir && !(Number(data.ongkir) > 0)) return toast('Isi nominal ongkir, atau hapus centang "Ada ongkir?".', true);
     btn.disabled = true;
     btn.textContent = 'Menyimpan…';
     try {
@@ -427,11 +452,15 @@
       <h2>Ubah kloter terpilih</h2>
       <div class="form-grid">
         <label>Nama kloter<input id="kNama" value="${esc(k.nama)}"></label>
-        <label>Status<select id="kStatus">${opsi(['Buka', 'Tutup'], k.status)}</select></label>
-        ${k.paket.map((p) => `<label>Sisa ${esc(p.nama)} (pcs)<input id="kSisa${esc(p.kode)}" type="number" min="0" step="1" inputmode="numeric" value="${p.sisa}"></label>`).join('')}
+        <label>Status<select id="kStatus">${opsi(k.status === 'Habis' ? ['Habis', 'Buka', 'Tutup'] : ['Buka', 'Tutup'], k.status)}</select></label>
+        ${k.paket.map((p) => `<label>Sisa ${esc(p.nama)} (pcs)<input id="kSisa${esc(p.kode)}" class="sisa-paket" type="number" min="0" step="1" inputmode="numeric" value="${p.sisa}"></label>`).join('')}
+        <label>Lebihan toples (pcs)<input id="kLebih" type="number" min="0" step="1" inputmode="numeric" value="${k.lebih.sisa}" ${k.bisaIsiLebih ? '' : 'disabled'}></label>
         <button type="button" class="btn" id="btnSimpanKloter">Simpan kloter</button>
       </div>
-      <p class="muted">Ubah sisa pcs saat ada kemasan tambahan, rusak, atau dipakai sendiri; stok awal kloter ikut disesuaikan. Status Tutup menghentikan pesanan baru dan perubahan dari pelanggan.</p>
+      <p class="muted" id="infoLebih">${k.bisaIsiLebih
+        ? 'Isi lebihan toples dari hasil produksi. Pesanan toples berikutnya akan mengambil dari lebihan ini.'
+        : 'Lebihan toples baru bisa diisi setelah sisa kiloan dan setengah kilo 0.'}</p>
+      <p class="muted">Ubah sisa pcs saat ada kemasan tambahan, rusak, atau dipakai sendiri; stok awal kloter ikut disesuaikan. Status Tutup menghentikan pesanan baru dan perubahan dari pelanggan. Status Habis diatur otomatis saat semua stok 0.</p>
 
       <h2>Modal ${esc(k.nama)}</h2>
       ${tabelModal(A.modal, 'data-hapus-modal')}
@@ -464,8 +493,19 @@
       $('btnSimpanKloter').onclick = () => simpanKloter({
         id: k.id, nama: $('kNama').value, status: $('kStatus').value,
         sisaKilo: $('kSisaKILO') ? $('kSisaKILO').value : '',
-        sisaSetengah: $('kSisaSETENGAH') ? $('kSisaSETENGAH').value : ''
+        sisaSetengah: $('kSisaSETENGAH') ? $('kSisaSETENGAH').value : '',
+        sisaLebih: $('kLebih').disabled ? '' : $('kLebih').value
       }, $('btnSimpanKloter'));
+      // Kolom lebihan aktif hanya bila sisa kiloan & setengah kilo yang diisi = 0.
+      const cekLebih = () => {
+        const nol = [...document.querySelectorAll('.sisa-paket')].every((el) => Number(el.value) === 0 && el.value !== '');
+        $('kLebih').disabled = !nol;
+        $('infoLebih').textContent = nol
+          ? 'Isi lebihan toples dari hasil produksi. Pesanan toples berikutnya akan mengambil dari lebihan ini.'
+          : 'Lebihan toples baru bisa diisi setelah sisa kiloan dan setengah kilo 0.';
+      };
+      document.querySelectorAll('.sisa-paket').forEach((el) => el.addEventListener('input', cekLebih));
+      $('kLebih').addEventListener('input', () => { if (Number($('kLebih').value) > 0 && $('kStatus').value === 'Habis') $('kStatus').value = 'Buka'; });
       $('btnTambahModal').onclick = async () => {
         const m = bacaModal('m');
         const e = cekModal(m);
@@ -618,7 +658,19 @@
     if (btn.dataset.act === 'rincian') kirimRincian(card, btn);
   });
   $('tabPesanan').addEventListener('change', (e) => {
-    if (e.target.id === 'filterStatus') { filterStatus = e.target.value; renderPesanan(); }
+    if (e.target.id === 'filterStatus') { filterStatus = e.target.value; renderPesanan(); return; }
+    const card = e.target.closest('.order');
+    if (!card) return;
+    // Tanggal antar hanya aktif saat status Diantar.
+    if (e.target.matches('select[data-f=status]')) {
+      card.querySelector('[data-f=tglAntar]').disabled = e.target.value !== 'Diantar';
+    }
+    // Centang "Ada ongkir?" menampilkan kolom nominal ongkir.
+    if (e.target.matches('input[data-f=adaOngkir]')) {
+      const kotak = card.querySelector('.nominal');
+      kotak.classList.toggle('hidden', !e.target.checked);
+      if (e.target.checked) kotak.querySelector('input').focus();
+    }
   });
   document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderTab(); }));
   $('selKloter').addEventListener('change', (e) => { kloterId = e.target.value; muat(); });
