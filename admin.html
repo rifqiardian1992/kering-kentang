@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F2B632">
-  <title>Penjual – Kering Kentang Tara</title>
+  <title>Pesan Kering Kentang Tara</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <meta name="robots" content="noindex">
+  <script>
+    // Link lama "?page=admin" diarahkan ke halaman penjual.
+    if (new URLSearchParams(location.search).get('page') === 'admin') location.replace('admin.html');
+  </script>
   <script>
     // Penangkap error paling awal: tetap jalan walaupun script utama gagal dibaca browser.
     window.addEventListener('error', function (e) {
@@ -20,130 +23,124 @@
     });
   </script>
   <style>
-    .wrap { max-width: 760px; padding-bottom: 60px; }
-    .atas { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-      padding-bottom: 14px; border-bottom: 4px solid var(--kentang); }
-    .atas .kanan { display: flex; gap: 8px; }
-    .atas .kanan button, .atas .kanan a { padding: 9px 14px; font-size: 0.9rem; }
-    .pilih-kloter { margin-top: 16px; }
-
-    .stok-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 18px; }
-    .stok-item { display: flex; align-items: center; gap: 12px; background: var(--kentang-muda); border-radius: 14px; padding: 12px 14px; }
-    .stok-item .angka { font-family: var(--judul); font-weight: 800; font-size: 2.6rem; line-height: 1; }
-    .stok-item.kecil { background: #fff; border: 1.5px solid var(--garis); }
-    .stok-item.kecil .angka { font-size: 1.7rem; }
-    .minus { color: var(--sambal); }
-    .angka-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
-    .angka-grid div { border: 1.5px solid var(--garis); border-radius: 12px; padding: 10px 12px; }
-    .angka-grid b { display: block; font-family: var(--judul); font-size: 1.3rem; white-space: nowrap; }
-    .angka-grid .muted { display: block; font-size: 0.75rem; }
-    .angka-grid .untung { background: var(--kentang-muda); border-color: var(--kentang); }
-    .rekap { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-top: 12px; font-size: 0.95rem; }
-    .rekap ul { list-style: none; padding: 0; margin: 4px 0; }
-    .rekap li { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--garis); padding: 3px 0; }
-
-    .tabs { display: flex; gap: 4px; margin-top: 26px; border-bottom: 1.5px solid var(--garis); }
-    .tabs button { background: transparent; color: var(--abu); border-radius: 10px 10px 0 0; padding: 10px 14px; }
-    .tabs button[aria-selected="true"] { color: var(--kecap); background: var(--kentang-muda); box-shadow: inset 0 -3px 0 var(--kentang); }
-
-    .filter { display: flex; gap: 8px; margin: 14px 0; }
-    .filter select { max-width: 200px; }
-    .order { border: 1.5px solid var(--garis); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-    .order.baru { border-color: var(--kentang); }
-    .order.batal { opacity: 0.6; }
-    .order .kop { display: flex; justify-content: space-between; gap: 10px; }
-    .order .nama { font-weight: 800; font-size: 1.05rem; }
-    .order .total { font-family: var(--judul); font-weight: 800; font-size: 1.25rem; white-space: nowrap; }
-    .order ul { padding-left: 18px; margin: 8px 0; }
-    .kontrol { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
-    .kontrol label { font-size: 0.8rem; font-weight: 700; color: var(--abu); }
-    .kontrol select, .kontrol input { margin-top: 2px; padding: 8px 10px; }
-    .aksi { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-    .aksi button { padding: 9px 16px; }
-
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; align-items: end; }
-    .form-grid label { font-weight: 700; font-size: 0.9rem; }
-    .form-grid input, .form-grid select { margin-top: 4px; }
-    .plg { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--garis); }
-    .plg .info { flex: 1; min-width: 0; }
-    .plg select { width: 130px; padding: 8px; }
-
-    .toast { position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 150%); background: var(--kecap); color: #fff;
-      padding: 12px 18px; border-radius: 12px; max-width: 90vw; transition: transform 0.25s; z-index: 10; }
-    .toast.show { transform: translate(-50%, 0); }
-    .toast.err { background: var(--sambal); }
-    .login { max-width: 320px; margin: 60px auto; }
-
-    .modal-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
-    .modal-form label { font-weight: 700; font-size: 0.85rem; }
-    .modal-form input { margin-top: 3px; padding: 8px 10px; }
-    .tabel-wrap { overflow-x: auto; margin-top: 10px; }
-    .tabel { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .tabel th, .tabel td { padding: 7px 8px; border-bottom: 1px solid var(--garis); text-align: left; white-space: nowrap; }
-    .tabel th { font-size: 0.8rem; color: var(--abu); }
-    .tabel .kanan { text-align: right; }
-    .tabel tfoot td { font-weight: 800; border-bottom: 0; }
-    .btn-hapus { background: none; color: var(--sambal); padding: 4px 6px; font-size: 0.85rem; }
-    details.tambah { margin-top: 12px; border: 1.5px dashed var(--garis); border-radius: 12px; padding: 10px 12px; }
-    details.tambah summary { cursor: pointer; font-weight: 700; }
-    details.tambah .btn { margin-top: 10px; }
+    .kepala { padding-bottom: 14px; border-bottom: 4px solid var(--kentang); }
+    .kepala .kloter { font-weight: 700; margin-top: 4px; }
+    .produk { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--garis); }
+    .produk .info { flex: 1; min-width: 0; }
+    .produk .nama { font-weight: 700; }
+    .produk .harga { font-family: var(--judul); font-weight: 800; font-size: 1.15rem; }
+    .produk .sisa { font-size: 0.85rem; color: var(--daun); font-weight: 700; }
+    .produk .sisa.habis { color: var(--sambal); }
+    .stepper { display: flex; align-items: center; border: 1.5px solid var(--garis); border-radius: 999px; flex-shrink: 0; }
+    .produk.pilih .stepper { border-color: var(--kentang); background: var(--kentang-muda); }
+    .stepper button {
+      width: 42px; height: 42px; padding: 0; background: transparent; color: var(--kecap);
+      font-size: 1.35rem; line-height: 1; border-radius: 999px;
+    }
+    .stepper button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .stepper input {
+      width: 48px; padding: 0; border: 0; background: transparent; text-align: center;
+      font-weight: 800; font-size: 1.05rem; box-shadow: none; -moz-appearance: textfield;
+    }
+    .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .pay { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pay label {
+      position: relative; border: 1.5px solid var(--garis); border-radius: 999px;
+      padding: 8px 16px; cursor: pointer; font-weight: 700;
+    }
+    .pay input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .pay label:has(input:checked) { background: var(--kecap); border-color: var(--kecap); color: #fff; }
+    .pay label:has(input:focus-visible) { box-shadow: 0 0 0 3px var(--kentang); }
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; background: var(--kentang);
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    }
+    .bar .isi { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+    .bar .total { flex: 1; min-width: 0; }
+    .bar .angka { font-family: var(--judul); font-weight: 800; font-size: 1.7rem; line-height: 1.05; }
+    .bar .ket { font-size: 0.85rem; }
+    .ringkas { border: 1.5px solid var(--garis); border-radius: 14px; padding: 16px; margin-top: 18px; }
+    .ringkas ul { padding-left: 18px; margin: 8px 0; }
+    .ringkas .total-besar { font-family: var(--judul); font-weight: 800; font-size: 1.5rem; }
+    .aksi-bawah { margin-top: 28px; }
+    .bayar { border: 2px solid var(--kentang); background: var(--kentang-muda); border-radius: 14px; padding: 14px 16px; margin: 16px 0; }
+    .bayar h3 { margin-bottom: 6px; }
+    .bayar img.qris { display: block; width: 100%; max-width: 320px; margin: 12px auto; background: #fff; border-radius: 10px; padding: 8px; }
+    .bayar .rek { font-family: var(--judul); font-weight: 800; font-size: 1.25rem; margin: 4px 0; word-break: break-word; }
+    .bayar .baris-aksi { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .bayar .baris-aksi a, .bayar .baris-aksi button { padding: 9px 14px; font-size: 0.9rem; text-decoration: none; border-radius: 10px; font-weight: 700; }
+    .petunjuk { margin-top: 10px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <section id="login" class="login hidden">
-      <h1 class="nama-toko">Kering Kentang Tara</h1>
-      <p class="muted">Halaman penjual</p>
-      <label class="f" for="pin">PIN admin</label>
-      <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
-      <div id="loginErr"></div>
-      <button type="button" class="btn" id="btnLogin" style="margin-top:14px;width:100%">Masuk</button>
+    <header class="kepala">
+      <h1 id="namaToko">Kering Kentang Tara</h1>
+      <p class="kloter" id="infoKloter"></p>
+      <p class="muted" id="infoStok"></p>
+    </header>
+
+    <div id="notif"></div>
+    <div id="loading" class="loading">Memuat menu…</div>
+
+    <section id="tutup" class="hidden">
+      <h2>PO sedang tutup</h2>
+      <p>Belum ada kloter yang menerima pesanan. Info kloter berikutnya akan kami kabarkan lewat WhatsApp.</p>
     </section>
 
-    <div id="loading" class="loading">Memuat…</div>
+    <section id="readonly" class="hidden"></section>
 
-    <section id="main" class="hidden">
-      <header class="atas">
-        <div>
-          <h1 class="nama-toko">Kering Kentang Tara</h1>
-          <p class="muted">Halaman penjual</p>
-        </div>
-        <div class="kanan">
-          <a class="btn-ghost" id="linkForm" href="#" target="_blank" style="border-radius:10px;text-decoration:none;font-weight:700">Buka form pesanan</a>
-          <button type="button" class="btn-ghost" id="btnMuat">Muat ulang</button>
-        </div>
-      </header>
+    <section id="selesai" class="hidden"></section>
 
-      <div class="pilih-kloter">
-        <label class="f" for="selKloter" style="margin-top:0">Kloter</label>
-        <select id="selKloter"></select>
+    <section id="form" class="hidden">
+      <p class="pesan info hidden" id="infoEdit"></p>
+
+      <label class="f" for="wa">Nomor WhatsApp</label>
+      <input id="wa" type="tel" inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx">
+      <p class="muted" id="waInfo">Konfirmasi dan rincian pesanan dikirim ke nomor ini.</p>
+
+      <label class="f" for="nama">Nama</label>
+      <input id="nama" autocomplete="name" placeholder="Nama untuk pesanan">
+
+      <h2>Pilih pesanan</h2>
+      <p class="pesan ok hidden" id="badge"></p>
+      <div id="produk"></div>
+
+      <label class="f" for="alamat">Alamat atau catatan</label>
+      <textarea id="alamat" rows="2" placeholder="Contoh: Blok A5 no. 27, antar sore"></textarea>
+
+      <h2>Cara bayar</h2>
+      <div class="pay" id="pay" role="radiogroup" aria-label="Cara bayar"></div>
+      <div id="infoBayarPilih"></div>
+
+      <div class="aksi-bawah hidden" id="aksiEdit">
+        <button type="button" class="btn-ghost" id="btnBatal">Batalkan pesanan</button>
       </div>
-
-      <div id="ringkasan"></div>
-
-      <nav class="tabs" role="tablist">
-        <button type="button" role="tab" data-tab="pesanan">Pesanan</button>
-        <button type="button" role="tab" data-tab="kloter">Kloter & stok</button>
-        <button type="button" role="tab" data-tab="pelanggan">Pelanggan</button>
-      </nav>
-
-      <div id="tabPesanan"></div>
-      <div id="tabKloter" class="hidden"></div>
-      <div id="tabPelanggan" class="hidden"></div>
     </section>
   </div>
-  <div class="toast" id="toast" role="status"></div>
+
+  <div class="bar hidden" id="bar">
+    <div class="isi">
+      <div class="total">
+        <div class="ket" id="barKet">Belum ada pesanan</div>
+        <div class="angka" id="barTotal">Rp0</div>
+      </div>
+      <button type="button" class="btn" id="btnKirim" disabled>Kirim pesanan</button>
+    </div>
+  </div>
 
 <script>
+  const Q = new URLSearchParams(location.search);
+  const bersih = (v) => String(v || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
+  const INIT = { id: bersih(Q.get('id')), t: bersih(Q.get('t')) };
   const $ = (id) => document.getElementById(id);
+  let D = null, qty = {}, jenis = 'normal', mode = 'baru', sibuk = false;
+
   const ribuan = (n) => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  const rp = (n) => (n < 0 ? '-Rp' : 'Rp') + ribuan(Math.abs(n || 0));
-  const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const tglPendek = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${Number(m[3])} ${BLN[Number(m[2]) - 1]}` : ''; };
+  const rp = (n) => 'Rp' + ribuan(n);
   const kg = (n) => String(Math.round((n || 0) * 100) / 100).replace('.', ',');
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const errMsg = (e) => String(e && e.message ? e.message : e).replace(/^Error:\s*/, '');
-  const opsi = (list, pilih) => list.map((v) => `<option value="${esc(v)}" ${v === pilih ? 'selected' : ''}>${esc(v)}</option>`).join('');
 
   // ===== GANTI jika link Apps Script (/exec) berubah =====
   const API_URL = 'https://script.google.com/macros/s/AKfycbyhW9KrovtOrKoJYZmy5jC3jQKpwqGOjnuDoMaZQtI6PLo2Wkb087QeFA3JQkBpBMTHpQ/exec';
@@ -171,460 +168,350 @@
     }
   }
 
-  let PIN = '';
-  try { PIN = sessionStorage.getItem('kk_pin') || ''; } catch (e) {}
-  let A = null, kloterId = '', tab = 'pesanan', filterStatus = 'aktif', cariPlg = '';
-
-  function toast(msg, err) {
-    const t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast show' + (err ? ' err' : '');
-    clearTimeout(toast.timer);
-    toast.timer = setTimeout(() => { t.className = 'toast'; }, 4000);
+  function notif(msg, tipe) {
+    $('notif').innerHTML = msg ? `<div class="pesan ${tipe || 'err'}" role="alert">${esc(msg)}</div>` : '';
+    if (msg) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function tampilLogin(pesan) {
-    $('loading').classList.add('hidden');
-    $('main').classList.add('hidden');
-    $('login').classList.remove('hidden');
-    $('loginErr').innerHTML = pesan ? `<div class="pesan err">${esc(pesan)}</div>` : '';
-    $('pin').focus();
-  }
-
-  async function login() {
-    const pin = $('pin').value.trim();
-    if (!pin) return;
-    $('btnLogin').disabled = true;
-    try {
-      await call('apiAdminLogin', pin);
-      PIN = pin;
-      try { sessionStorage.setItem('kk_pin', pin); } catch (e) {}
-      $('login').classList.add('hidden');
-      await muat();
-    } catch (e) {
-      tampilLogin(errMsg(e));
-    } finally {
-      $('btnLogin').disabled = false;
-    }
+  function tampil(id) {
+    ['loading', 'tutup', 'readonly', 'selesai', 'form'].forEach((s) => $(s).classList.toggle('hidden', s !== id));
+    $('bar').classList.toggle('hidden', id !== 'form');
   }
 
   async function muat() {
-    if (!PIN) return tampilLogin('');
+    tampil('loading');
     try {
-      A = await call('apiAdminData', PIN, kloterId);
+      D = await call('apiOrderPage', INIT.id, INIT.t);
     } catch (e) {
-      const m = errMsg(e);
-      if (/PIN/.test(m)) {
-        PIN = '';
-        try { sessionStorage.removeItem('kk_pin'); } catch (x) {}
-        return tampilLogin(m);
-      }
       $('loading').classList.add('hidden');
-      return toast(m, true);
-    }
-    kloterId = A.kloter ? A.kloter.id : '';
-    if (A.toko) document.querySelectorAll('.nama-toko').forEach((el) => { el.textContent = A.toko; });
-    $('loading').classList.add('hidden');
-    $('main').classList.remove('hidden');
-    $('linkForm').href = A.urlOrder || '#';
-    render();
-  }
-
-  function render() {
-    $('selKloter').innerHTML = A.kloters.length
-      ? A.kloters.map((k) => `<option value="${esc(k.id)}" ${k.id === kloterId ? 'selected' : ''}>${esc(k.nama)}${k.status === 'Buka' ? ' (buka)' : ''}</option>`).join('')
-      : '<option>Belum ada kloter</option>';
-    renderRingkasan();
-    renderTab();
-  }
-
-  function renderRingkasan() {
-    const k = A.kloter;
-    if (!k) {
-      $('ringkasan').innerHTML = '<p class="pesan info">Belum ada kloter. Buka tab <strong>Kloter & stok</strong> untuk membuka kloter pertama.</p>';
+      notif(errMsg(e));
       return;
     }
-    const r = A.ringkasan;
-    const daftar = (obj, fmt) => {
-      const ks = Object.keys(obj);
-      return ks.length ? '<ul>' + ks.map((x) => `<li><span>${esc(x)}</span><b>${fmt(obj[x])}</b></li>`).join('') + '</ul>' : '<p class="muted">Belum ada</p>';
-    };
-    $('ringkasan').innerHTML = `
-      <div class="stok-grid">
-        ${k.paket.map((p) => `
-          <div class="stok-item">
-            <div class="angka ${p.sisa <= 0 ? 'minus' : ''}">${p.sisa}</div>
-            <div>${esc(p.nama)}<br><span class="muted">pcs tersisa dari ${p.stok}</span></div>
-          </div>`).join('')}
-        ${k.eceran.map((e) => `
-          <div class="stok-item kecil">
-            <div class="angka">±${e.n}</div>
-            <div>${esc(e.nama)}<br><span class="muted">pcs bisa diisi</span></div>
-          </div>`).join('')}
-      </div>
-      <p class="muted">Toples dan pouch diisi dari kemasan kiloan dan setengah kilo yang tersisa${k.lepas > 0 ? `, ditambah ${kg(k.lepas)} kg dari kemasan yang sudah dibuka` : ''}.</p>
-      ${k.kurang ? '<p class="pesan err">Pesanan melebihi stok. Tambah sisa pcs di tab Kloter & stok, atau kurangi pesanan.</p>' : ''}
-      <div class="angka-grid">
-        <div>Pesanan aktif<b>${r.jumlah}</b></div>
-        <div>Total penjualan<b>${rp(r.omzet)}</b></div>
-        <div>Sudah dibayar<b>${rp(r.lunas)}</b></div>
-        <div>Belum dibayar<b>${rp(r.belum)}</b></div>
-        <div>Total modal<b>${rp(r.modal)}</b></div>
-        <div class="untung">Keuntungan saat ini<b class="${r.untung < 0 ? 'minus' : ''}">${rp(r.untung)}</b><span class="muted">sudah dibayar dikurangi modal</span></div>
-        <div>Estimasi keuntungan<b class="${r.estimasi < 0 ? 'minus' : ''}">${rp(r.estimasi)}</b><span class="muted">jika semua pesanan lunas</span></div>
-      </div>
-      <div class="rekap">
-        <div><h3>Jumlah per produk</h3>${daftar(r.perProduk, (v) => v)}</div>
-        <div><h3>Pembayaran masuk</h3>${daftar(r.perBayar, rp)}</div>
-      </div>`;
+    qty = {};
+    if (D.toko) { $('namaToko').textContent = D.toko; document.title = 'Pesan ' + D.toko; }
+    $('infoKloter').textContent = D.kloter ? D.kloter.nama : '';
+
+    if (D.order) {
+      mode = 'edit';
+      jenis = D.order.jenis;
+      if (!D.order.editable) return tampilReadonly();
+      D.order.items.forEach((i) => { qty[i.kode] = i.qty; });
+      $('wa').value = D.order.wa;
+      $('wa').readOnly = true;
+      $('waInfo').textContent = 'Nomor WhatsApp tidak bisa diubah untuk pesanan ini.';
+      $('nama').value = D.order.nama;
+      $('alamat').value = D.order.alamat;
+      $('infoEdit').textContent = `Anda sedang mengubah pesanan ${D.order.id}. Perubahan bisa dilakukan selama pesanan belum diproses.`;
+      $('infoEdit').classList.remove('hidden');
+      $('aksiEdit').classList.remove('hidden');
+      $('btnKirim').textContent = 'Simpan perubahan';
+    } else if (!D.kloter || !D.kloter.buka) {
+      $('infoStok').textContent = '';
+      return tampil('tutup');
+    }
+
+    $('pay').innerHTML = D.caraBayar.map((c) => `
+      <label><input type="radio" name="bayar" value="${esc(c)}" ${D.order && D.order.caraBayar === c ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('');
+    setJenis(jenis);
+    tampil('form');
   }
 
-  function renderTab() {
-    document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-    $('tabPesanan').classList.toggle('hidden', tab !== 'pesanan');
-    $('tabKloter').classList.toggle('hidden', tab !== 'kloter');
-    $('tabPelanggan').classList.toggle('hidden', tab !== 'pelanggan');
-    if (tab === 'pesanan') renderPesanan();
-    if (tab === 'kloter') renderKloter();
-    if (tab === 'pelanggan') renderPelanggan();
+  function setJenis(j) {
+    jenis = j === 'reseller' ? 'reseller' : 'normal';
+    const diskon = D.produk.filter((p) => p.harga.reseller < p.harga.normal).map((p) => p.nama);
+    $('badge').textContent = 'Harga reseller berlaku untuk ' + diskon.join(' dan ') + '.';
+    $('badge').classList.toggle('hidden', jenis !== 'reseller' || !diskon.length);
+    renderProduk();
   }
 
-  function renderPesanan() {
-    const list = A.pesanan.filter((o) => {
-      if (filterStatus === 'aktif') return o.status !== 'Dibatalkan' && o.status !== 'Selesai';
-      if (filterStatus === 'belum-bayar') return o.status !== 'Dibatalkan' && o.statusBayar === 'Belum bayar';
-      if (filterStatus === 'semua') return true;
-      return o.status === filterStatus;
+  const harga = (p) => (jenis === 'reseller' ? Math.min(p.harga.reseller, p.harga.normal) : p.harga.normal);
+  const bulat3 = (n) => Math.round((n || 0) * 1000) / 1000;
+  const isPaket = (kode) => D.paket.includes(kode);
+
+  // Sama dengan alokasi_ di Code.gs: toples & pouch diisi dari kemasan kiloan/setengah yang tersisa.
+  function alokasi(pakai) {
+    const k = D.kloter, berat = k.berat;
+    const bebas = {}, buka = {}, sisa = {};
+    D.paket.forEach((x) => { bebas[x] = k.stok[x] - pakai[x]; buka[x] = 0; });
+    const kurangPaket = D.paket.filter((x) => bebas[x] < 0);
+    let perlu = bulat3(pakai.eceranKg);
+    k.urutan.forEach((x) => {
+      if (perlu <= 1e-9 || bebas[x] <= 0 || !(berat[x] > 0)) return;
+      const n = Math.min(bebas[x], Math.ceil(perlu / berat[x] - 1e-9));
+      buka[x] = n;
+      perlu = bulat3(perlu - n * berat[x]);
     });
-    const pilihan = [['aktif', 'Belum selesai'], ['belum-bayar', 'Belum bayar'], ['semua', 'Semua']]
-      .concat(A.status.map((s) => [s, s]));
-    $('tabPesanan').innerHTML = `
-      <div class="filter">
-        <select id="filterStatus" aria-label="Saring pesanan">
-          ${pilihan.map(([v, l]) => `<option value="${esc(v)}" ${v === filterStatus ? 'selected' : ''}>${esc(l)}</option>`).join('')}
-        </select>
-      </div>
-      ${list.length ? list.map(kartuPesanan).join('') : '<p class="muted">Tidak ada pesanan untuk filter ini.</p>'}`;
+    const lepas = perlu < 0 ? -perlu : 0;
+    let kgEceran = lepas;
+    D.paket.forEach((x) => { sisa[x] = Math.max(0, bebas[x]) - buka[x]; kgEceran += sisa[x] * berat[x]; });
+    return { ok: !kurangPaket.length && perlu <= 1e-9, sisa, kgEceran: bulat3(kgEceran) };
   }
 
-  function kartuPesanan(o) {
-    const kelas = o.status === 'Baru' ? 'baru' : (o.status === 'Dibatalkan' ? 'batal' : '');
-    return `
-      <article class="order ${kelas}" data-id="${esc(o.id)}">
-        <div class="kop">
-          <div>
-            <div class="nama">${esc(o.nama)} ${o.jenis === 'reseller' ? '<span class="badge">reseller</span>' : ''}</div>
-            <div class="muted">${esc(o.id)}, dipesan ${esc(o.waktu)}${o.diubah && o.diubah !== o.waktu ? ', diubah ' + esc(o.diubah) : ''}</div>
+  function statusStok(ubah) {
+    const k = D.kloter;
+    const pakai = { eceranKg: k.pakaiLain.eceranKg };
+    D.paket.forEach((x) => { pakai[x] = k.pakaiLain[x]; });
+    const q = Object.assign({}, qty, ubah || {});
+    D.produk.forEach((p) => {
+      const n = q[p.kode] || 0;
+      if (!n) return;
+      if (isPaket(p.kode)) pakai[p.kode] += n;
+      else pakai.eceranKg += n * p.berat;
+    });
+    return alokasi(pakai);
+  }
+
+  const bisaJadi = (kode, n) => statusStok({ [kode]: n }).ok;
+  const totalKg = () => D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * p.berat, 0);
+
+  // Berapa pcs lagi yang masih bisa dipesan untuk produk ini (sudah memperhitungkan isi keranjang).
+  function maksTambah(kode) {
+    const q = qty[kode] || 0;
+    let n = 0;
+    while (n < 999 && bisaJadi(kode, q + n + 1)) n++;
+    return n;
+  }
+
+  function renderProduk() {
+    $('produk').innerHTML = D.produk.map((p) => {
+      const q = qty[p.kode] || 0;
+      const sisa = p.aktif ? maksTambah(p.kode) : 0;
+      const bisaTambah = sisa > 0;
+      const teksSisa = `Tersisa ${sisa} pcs`;
+      return `
+        <div class="produk ${q ? 'pilih' : ''}">
+          <div class="info">
+            <div class="nama">${esc(p.nama)}</div>
+            <div class="harga">${rp(harga(p))}${harga(p) < p.harga.normal ? ` <s class="muted">${rp(p.harga.normal)}</s>` : ''}</div>
+            ${!p.aktif ? '<div class="muted">Sudah tidak dijual, hanya bisa dikurangi</div>' : ''}
+            ${p.aktif ? `<div class="sisa ${bisaTambah ? '' : 'habis'}">${!bisaTambah && !q ? 'Stok habis' : teksSisa}</div>` : ''}
           </div>
-          <div class="total">${rp(o.total)}</div>
-        </div>
-        <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
-        <div class="muted">${kg(o.kg)} kg${o.alamat ? '. ' + esc(o.alamat) : ''}</div>
-        <div class="kontrol">
-          <label>Status<select data-f="status">${opsi(A.status, o.status)}</select></label>
-          <label>Pembayaran<select data-f="statusBayar">${opsi(A.statusBayar, o.statusBayar)}</select></label>
-          <label>Cara bayar<select data-f="caraBayar">${opsi(A.caraBayar, o.caraBayar)}</select></label>
-          <label>Tanggal antar<input type="date" data-f="tglAntar" value="${esc(o.tglAntar)}"></label>
-        </div>
-        <div class="aksi">
-          <button type="button" class="btn" data-act="simpan">Simpan</button>
-          ${o.statusBayar === 'Lunas' ? '<button type="button" class="btn-ghost" data-act="rincian">Kirim ulang rincian</button>' : ''}
-          <a href="https://wa.me/${esc(o.wa)}" target="_blank" rel="noopener">Chat ${esc(o.wa)}</a>
-        </div>
-      </article>`;
+          <div class="stepper">
+            <button type="button" data-k="${esc(p.kode)}" data-d="-1" aria-label="Kurangi ${esc(p.nama)}" ${q ? '' : 'disabled'}>−</button>
+            <input type="number" inputmode="numeric" min="0" data-k="${esc(p.kode)}" value="${q}" aria-label="Jumlah ${esc(p.nama)}">
+            <button type="button" data-k="${esc(p.kode)}" data-d="1" aria-label="Tambah ${esc(p.nama)}" ${bisaTambah ? '' : 'disabled'}>+</button>
+          </div>
+        </div>`;
+    }).join('');
+    updateBar();
   }
 
-  async function simpanPesanan(card, btn) {
-    const data = {};
-    card.querySelectorAll('[data-f]').forEach((el) => { data[el.dataset.f] = el.value; });
-    btn.disabled = true;
-    btn.textContent = 'Menyimpan…';
-    try {
-      const r = await call('apiUpdatePesanan', PIN, card.dataset.id, data);
-      const gagal = r.terkirim.filter((x) => !x.ok).map((x) => x.jenis);
-      const ok = r.terkirim.filter((x) => x.ok).map((x) => x.jenis);
-      let msg = 'Tersimpan.';
-      if (ok.length) msg += ' WA ' + ok.join(' & ') + ' terkirim.';
-      if (gagal.length) msg += ' WA ' + gagal.join(' & ') + ' gagal, cek sheet Log_WA.';
-      toast(msg, gagal.length > 0);
-      await muat();
-    } catch (e) {
-      toast(errMsg(e), true);
-      btn.disabled = false;
-      btn.textContent = 'Simpan';
+  function setQty(kode, nilai) {
+    const p = D.produk.find((x) => x.kode === kode);
+    if (!p) return;
+    let n = Math.max(0, Math.floor(Number(nilai) || 0));
+    const lama = qty[kode] || 0;
+    if (!p.aktif && n > lama) n = lama;
+    while (n > lama && !bisaJadi(kode, n)) n--;
+    if (n) qty[kode] = n; else delete qty[kode];
+    renderProduk();
+  }
+
+  function updateBar() {
+    const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
+    const jumlah = Object.values(qty).reduce((a, b) => a + b, 0);
+    $('barTotal').textContent = rp(total);
+    $('barKet').textContent = jumlah ? `${jumlah} item, sekitar ${kg(totalKg())} kg` : 'Belum ada pesanan';
+    $('btnKirim').disabled = !jumlah || sibuk;
+    renderInfoBayar();
+    if (D.kloter) {
+      const bag = D.produk.filter((p) => isPaket(p.kode)).map((p) => `${p.nama} ${maksTambah(p.kode)} pcs`);
+      $('infoStok').textContent = 'Sisa stok: ' + bag.join(', ');
     }
   }
 
-  async function kirimRincian(card, btn) {
-    btn.disabled = true;
-    try {
-      const ok = await call('apiKirimRincian', PIN, card.dataset.id);
-      toast(ok ? 'Rincian transaksi terkirim.' : 'WA gagal terkirim, cek sheet Log_WA.', !ok);
-    } catch (e) {
-      toast(errMsg(e), true);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  let modalBaru = [];
-  let draftKloter = { nama: '', kilo: '', setengah: '' };
-
-  function simpanDraft() {
-    if (!$('nNama')) return;
-    draftKloter = { nama: $('nNama').value, kilo: $('nKilo').value, setengah: $('nSetengah').value };
-  }
-
-  function inputModal(p) {
-    return `
-      <div class="modal-form">
-        <label>Tanggal<input type="date" id="${p}Tgl" value="${esc(A.hariIni)}"></label>
-        <label>Item modal<input id="${p}Item" placeholder="Contoh: Kering kentang"></label>
-        <label>Harga satuan<input id="${p}Harga" type="number" inputmode="decimal" step="any" placeholder="65000"></label>
-        <label>Satuan<input id="${p}Satuan" placeholder="kg / pcs / -"></label>
-        <label>Jumlah<input id="${p}Jumlah" type="number" inputmode="decimal" step="any" value="1"></label>
-        <label>Keterangan<input id="${p}Ket" placeholder="Opsional"></label>
-      </div>`;
-  }
-
-  function bacaModal(p) {
-    return {
-      tanggal: $(p + 'Tgl').value, item: $(p + 'Item').value.trim(), harga: $(p + 'Harga').value,
-      satuan: $(p + 'Satuan').value.trim(), jumlah: $(p + 'Jumlah').value, ket: $(p + 'Ket').value.trim()
-    };
-  }
-
-  function cekModal(m) {
-    if (!m.item) return 'Isi nama item modal.';
-    if (m.harga === '' || isNaN(Number(m.harga))) return 'Isi harga satuan (boleh minus untuk diskon atau voucher).';
-    if (!(Number(m.jumlah) > 0)) return 'Jumlah harus lebih dari 0.';
+  function jenisBayar(m) {
+    m = String(m || '').toLowerCase();
+    if (m.includes('qris')) return 'qris';
+    if (m.includes('transfer') || m.includes('bca')) return 'transfer';
+    if (m.includes('cash') || m.includes('tunai') || m.includes('cod')) return 'cash';
     return '';
   }
 
-  function tabelModal(list, attr) {
-    if (!list.length) return '<p class="muted">Belum ada item modal.</p>';
-    const total = list.reduce((a, m) => a + Number(m.harga) * Number(m.jumlah), 0);
-    return `
-      <div class="tabel-wrap"><table class="tabel">
-        <thead><tr><th>No</th><th>Tanggal</th><th>Item</th><th class="kanan">Harga</th><th>Satuan</th>
-          <th class="kanan">Jumlah</th><th class="kanan">Total</th><th>Ket.</th><th></th></tr></thead>
-        <tbody>${list.map((m, i) => `
-          <tr>
-            <td>${i + 1}</td><td>${esc(tglPendek(m.tanggal))}</td><td>${esc(m.item)}</td>
-            <td class="kanan">${ribuan(Number(m.harga))}</td><td>${esc(m.satuan || '-')}</td>
-            <td class="kanan">${esc(String(m.jumlah).replace('.', ','))}</td>
-            <td class="kanan">${ribuan(Number(m.harga) * Number(m.jumlah))}</td><td>${esc(m.ket)}</td>
-            <td><button type="button" class="btn-hapus" ${attr}="${esc(m.id !== undefined ? m.id : i)}" aria-label="Hapus ${esc(m.item)}">Hapus</button></td>
-          </tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="6">Total modal</td><td class="kanan">${rp(total)}</td><td colspan="2"></td></tr></tfoot>
-      </table></div>`;
+  // Ambil nomor rekening (deretan angka terpanjang) dari teks INFO_TRANSFER.
+  const nomorRek = (t) => ((String(t || '').match(/\d[\d\s.-]{5,}\d/) || [''])[0]).replace(/\D/g, '');
+
+  // Kotak instruksi pembayaran sesuai cara bayar.
+  function kotakBayar(metode, total, idPesanan) {
+    const b = (D && D.bayar) || {};
+    const j = jenisBayar(metode);
+    let tombolBukti = '';
+    if (idPesanan && b.waPenjual && j !== 'cash') {
+      const teks = `Halo, berikut bukti bayar pesanan ${idPesanan} sebesar ${rp(total)}.`;
+      tombolBukti = `<a class="btn-ghost" href="https://wa.me/${esc(b.waPenjual)}?text=${encodeURIComponent(teks)}" target="_blank" rel="noopener">Kirim bukti bayar via WA</a>`;
+    }
+    if (j === 'qris') {
+      if (!b.qris) return `<div class="bayar"><h3>Bayar dengan QRIS</h3><p>Kode QRIS akan dikirim penjual lewat WhatsApp.</p></div>`;
+      return `
+        <div class="bayar">
+          <h3>Bayar dengan QRIS</h3>
+          <p>Scan kode di bawah dengan aplikasi e-wallet atau m-banking, lalu bayar <strong>${rp(total)}</strong>.</p>
+          <img class="qris" src="${esc(b.qris)}" alt="Kode QRIS pembayaran">
+          <div class="baris-aksi">
+            <a class="btn-ghost" href="${esc(b.qris)}" download="QRIS-Kering-Kentang-Tara.png">Simpan gambar QRIS</a>
+            ${tombolBukti}
+          </div>
+          <p class="muted" style="margin-top:8px">Memakai HP yang sama? Simpan gambarnya, lalu pilih "scan dari galeri" di aplikasi pembayaran.</p>
+        </div>`;
+    }
+    if (j === 'transfer') {
+      const rek = nomorRek(b.transfer);
+      return `
+        <div class="bayar">
+          <h3>Transfer bank</h3>
+          <p>Transfer <strong>${rp(total)}</strong> ke rekening:</p>
+          <div class="rek">${esc(b.transfer || 'Nomor rekening akan dikirim penjual lewat WhatsApp.')}</div>
+          <div class="baris-aksi">
+            ${rek ? `<button type="button" class="btn-ghost" data-salin="${esc(rek)}">Salin nomor rekening</button>` : ''}
+            ${tombolBukti}
+          </div>
+        </div>`;
+    }
+    if (j === 'cash') {
+      return `<div class="bayar"><h3>Bayar tunai</h3><p>${esc(b.cash)}</p></div>`;
+    }
+    return b.lain ? `<div class="bayar"><h3>Pembayaran</h3><p>${esc(b.lain)}</p></div>` : '';
   }
 
-  function renderKloter() {
-    const k = A.kloter;
-    $('tabKloter').innerHTML = `
-      ${k ? `
-      <h2>Ubah kloter terpilih</h2>
-      <div class="form-grid">
-        <label>Nama kloter<input id="kNama" value="${esc(k.nama)}"></label>
-        <label>Status<select id="kStatus">${opsi(['Buka', 'Tutup'], k.status)}</select></label>
-        ${k.paket.map((p) => `<label>Sisa ${esc(p.nama)} (pcs)<input id="kSisa${esc(p.kode)}" type="number" min="0" step="1" inputmode="numeric" value="${p.sisa}"></label>`).join('')}
-        <button type="button" class="btn" id="btnSimpanKloter">Simpan kloter</button>
-      </div>
-      <p class="muted">Ubah sisa pcs saat ada kemasan tambahan, rusak, atau dipakai sendiri; stok awal kloter ikut disesuaikan. Status Tutup menghentikan pesanan baru dan perubahan dari pelanggan.</p>
+  // Petunjuk di bawah pilihan cara bayar pada form.
+  function renderInfoBayar() {
+    const el = $('infoBayarPilih');
+    if (!el || !D) return;
+    const pilih = document.querySelector('input[name=bayar]:checked');
+    if (!pilih) { el.innerHTML = ''; return; }
+    const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
+    if (mode === 'edit' && D.order.statusBayar === 'Belum bayar') {
+      el.innerHTML = kotakBayar(pilih.value, total, D.order.id);
+      return;
+    }
+    const j = jenisBayar(pilih.value);
+    const teks = j === 'qris' ? 'Kode QRIS akan tampil setelah pesanan dikirim.'
+      : j === 'transfer' ? 'Nomor rekening tujuan akan tampil setelah pesanan dikirim.'
+      : j === 'cash' ? (D.bayar && D.bayar.cash) : '';
+    el.innerHTML = teks ? `<p class="petunjuk muted">${esc(teks)}</p>` : '';
+  }
 
-      <h2>Modal ${esc(k.nama)}</h2>
-      ${tabelModal(A.modal, 'data-hapus-modal')}
-      <details class="tambah">
-        <summary>Tambah item modal</summary>
-        ${inputModal('m')}
-        <button type="button" class="btn" id="btnTambahModal">Tambah item modal</button>
-      </details>` : ''}
-
-      <h2>Buka kloter baru</h2>
-      <div class="form-grid">
-        <label>Nama kloter<input id="nNama" value="${esc(draftKloter.nama || A.saranNamaKloter)}"></label>
-        <label>Stok kiloan (pcs)<input id="nKilo" type="number" min="0" step="1" inputmode="numeric" placeholder="10" value="${esc(draftKloter.kilo)}"></label>
-        <label>Stok setengah kilo (pcs)<input id="nSetengah" type="number" min="0" step="1" inputmode="numeric" placeholder="10" value="${esc(draftKloter.setengah)}"></label>
-      </div>
-      <h3 style="margin-top:20px">Daftar modal kloter baru</h3>
-      <p class="muted">Masukkan semua biaya kloter ini: bahan, kemasan, stiker, ongkir. Diskon atau voucher ditulis dengan harga minus. Kloter baru hanya bisa dibuka setelah daftar modal diisi.</p>
-      ${inputModal('b')}
-      <div class="aksi">
-        <button type="button" class="btn-ghost" id="btnTambahBaru">Tambah ke daftar</button>
-        ${A.modal.length ? '<button type="button" class="btn-ghost" id="btnSalinModal">Salin modal kloter terpilih</button>' : ''}
-      </div>
-      ${tabelModal(modalBaru, 'data-hapus-baru')}
-      <div class="aksi" style="margin-top:14px">
-        <button type="button" class="btn" id="btnKloterBaru" ${modalBaru.length ? '' : 'disabled'}>Buka kloter baru</button>
-        <span class="muted">${modalBaru.length ? 'Kloter lain yang masih buka akan ditutup otomatis.' : 'Isi minimal satu item modal terlebih dahulu.'}</span>
+  function tampilReadonly() {
+    const o = D.order;
+    let alasan = 'Pesanan sudah diproses sehingga tidak bisa diubah lagi. Hubungi penjual lewat WhatsApp jika perlu perubahan.';
+    if (o.status === 'Dibatalkan') alasan = 'Pesanan ini sudah dibatalkan.';
+    else if (D.kloter && !D.kloter.buka && (o.status === 'Baru' || o.status === 'Dikonfirmasi')) {
+      alasan = 'PO kloter ini sudah ditutup sehingga pesanan tidak bisa diubah lagi. Hubungi penjual jika perlu perubahan.';
+    }
+    $('infoStok').textContent = '';
+    $('readonly').innerHTML = `
+      <div class="ringkas">
+        <h2 style="margin-top:0">Pesanan ${esc(o.id)}</h2>
+        <p>Status: <strong>${esc(o.status === 'Baru' ? 'Menunggu konfirmasi' : o.status)}</strong>, ${esc(o.statusBayar.toLowerCase())}</p>
+        <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
+        <div class="total-besar">${rp(o.total)}</div>
+        ${o.statusBayar === 'Belum bayar' && o.status !== 'Dibatalkan' ? kotakBayar(o.caraBayar, o.total, o.id) : ''}
+        <p class="muted">${esc(alasan)}</p>
       </div>`;
-
-    if (k) {
-      $('btnSimpanKloter').onclick = () => simpanKloter({
-        id: k.id, nama: $('kNama').value, status: $('kStatus').value,
-        sisaKilo: $('kSisaKILO') ? $('kSisaKILO').value : '',
-        sisaSetengah: $('kSisaSETENGAH') ? $('kSisaSETENGAH').value : ''
-      }, $('btnSimpanKloter'));
-      $('btnTambahModal').onclick = async () => {
-        const m = bacaModal('m');
-        const e = cekModal(m);
-        if (e) return toast(e, true);
-        const btn = $('btnTambahModal');
-        btn.disabled = true;
-        simpanDraft();
-        try {
-          await call('apiTambahModal', PIN, k.id, m);
-          toast('Item modal ditambahkan.');
-          await muat();
-        } catch (err) {
-          toast(errMsg(err), true);
-          btn.disabled = false;
-        }
-      };
-    }
-    $('btnTambahBaru').onclick = () => {
-      const m = bacaModal('b');
-      const e = cekModal(m);
-      if (e) return toast(e, true);
-      simpanDraft();
-      modalBaru.push(m);
-      renderKloter();
-      $('bItem').focus();
-    };
-    if ($('btnSalinModal')) {
-      $('btnSalinModal').onclick = () => {
-        simpanDraft();
-        modalBaru = A.modal.map((m) => ({ tanggal: A.hariIni, item: m.item, harga: m.harga, satuan: m.satuan, jumlah: m.jumlah, ket: m.ket }));
-        renderKloter();
-        toast('Modal disalin. Sesuaikan harga atau jumlah yang berbeda.');
-      };
-    }
-    $('btnKloterBaru').onclick = () => {
-      if (!modalBaru.length) return toast('Isi daftar modal terlebih dahulu.', true);
-      if ($('nKilo').value === '' && $('nSetengah').value === '') return toast('Isi stok kiloan atau setengah kilo (pcs).', true);
-      simpanKloter({
-        nama: $('nNama').value, stokKilo: $('nKilo').value || 0, stokSetengah: $('nSetengah').value || 0, modal: modalBaru
-      }, $('btnKloterBaru'), true);
-    };
+    tampil('readonly');
   }
 
-  async function simpanKloter(d, btn, baru) {
-    btn.disabled = true;
-    if (!baru) simpanDraft();
+  async function kirim() {
+    if (sibuk) return;
+    const bayar = document.querySelector('input[name=bayar]:checked');
+    const data = {
+      id: mode === 'edit' ? D.order.id : '',
+      token: INIT.t,
+      wa: $('wa').value,
+      nama: $('nama').value,
+      alamat: $('alamat').value,
+      caraBayar: bayar ? bayar.value : '',
+      items: qty
+    };
+    if (mode !== 'edit' && data.wa.replace(/\D/g, '').length < 9) return notif('Isi nomor WhatsApp yang aktif, contoh 081234567890.');
+    if (!data.nama.trim()) return notif('Isi nama untuk pesanan.');
+    if (!Object.keys(qty).length) return notif('Pilih minimal satu produk.');
+    if (!data.caraBayar) return notif('Pilih cara bayar.');
+
+    sibuk = true;
+    const label = $('btnKirim').textContent;
+    $('btnKirim').disabled = true;
+    $('btnKirim').textContent = 'Mengirim…';
+    notif('');
     try {
-      const id = await call('apiSimpanKloter', PIN, d);
-      if (baru) {
-        kloterId = id;
-        modalBaru = [];
-        draftKloter = { nama: '', kilo: '', setengah: '' };
-      }
-      toast(baru ? 'Kloter baru dibuka.' : 'Kloter tersimpan.');
-      await muat();
+      const r = await call('apiSubmitOrder', data);
+      tampilSelesai(r, data.caraBayar);
     } catch (e) {
-      toast(errMsg(e), true);
-      btn.disabled = false;
-    }
-  }
-
-  $('tabKloter').addEventListener('click', async (e) => {
-    const baru = e.target.closest('[data-hapus-baru]');
-    if (baru) {
-      simpanDraft();
-      modalBaru.splice(Number(baru.dataset.hapusBaru), 1);
-      return renderKloter();
-    }
-    const lama = e.target.closest('[data-hapus-modal]');
-    if (lama) {
-      if (!confirm('Hapus item modal ini?')) return;
-      lama.disabled = true;
-      simpanDraft();
-      try {
-        await call('apiHapusModal', PIN, lama.dataset.hapusModal);
-        toast('Item modal dihapus.');
-        await muat();
-      } catch (err) {
-        toast(errMsg(err), true);
-        lama.disabled = false;
-      }
-    }
-  });
-
-  function renderPelanggan() {
-    const q = cariPlg.toLowerCase();
-    const list = A.pelanggan.filter((p) => !q || p.nama.toLowerCase().includes(q) || p.wa.includes(q));
-    $('tabPelanggan').innerHTML = `
-      <h2>Tambah atau ubah pelanggan</h2>
-      <div class="form-grid">
-        <label>No WhatsApp<input id="pWa" type="tel" inputmode="tel" placeholder="08xxxxxxxxxx"></label>
-        <label>Nama<input id="pNama"></label>
-        <label>Jenis harga<select id="pJenis">${opsi(A.jenisHarga, 'normal')}</select></label>
-        <button type="button" class="btn" id="btnSimpanPlg">Simpan pelanggan</button>
-      </div>
-      <p class="muted">Jika nomor sudah terdaftar, nama dan jenis harganya diperbarui. Jenis harga berlaku untuk pesanan baru dan pesanan yang diubah pelanggan.</p>
-      <h2>Daftar pelanggan (${A.pelanggan.length})</h2>
-      <input id="cariPlg" placeholder="Cari nama atau nomor" value="${esc(cariPlg)}" aria-label="Cari pelanggan">
-      <div id="listPlg">
-        ${list.length ? list.map((p) => `
-          <div class="plg" data-wa="${esc(p.wa)}">
-            <div class="info"><strong>${esc(p.nama)}</strong><div class="muted">${esc(p.wa)}</div></div>
-            <select data-jenis aria-label="Jenis harga ${esc(p.nama)}">${opsi(A.jenisHarga, p.jenis)}</select>
-          </div>`).join('') : '<p class="muted">Belum ada pelanggan yang cocok.</p>'}
-      </div>`;
-    $('btnSimpanPlg').onclick = async () => {
-      const btn = $('btnSimpanPlg');
-      btn.disabled = true;
-      try {
-        const r = await call('apiSimpanPelanggan', PIN, { wa: $('pWa').value, nama: $('pNama').value, jenis: $('pJenis').value });
-        toast('Pelanggan tersimpan.' + (r && r.diperbarui ? ` ${r.diperbarui} pesanan belum dibayar ikut disesuaikan harganya.` : ''));
-        await muat();
-      } catch (e) {
-        toast(errMsg(e), true);
-        btn.disabled = false;
-      }
-    };
-    $('cariPlg').oninput = (e) => {
-      cariPlg = e.target.value;
-      const pos = e.target.selectionStart;
-      renderPelanggan();
-      $('cariPlg').focus();
-      $('cariPlg').setSelectionRange(pos, pos);
-    };
-  }
-
-  $('tabPelanggan').addEventListener('change', async (e) => {
-    if (!e.target.matches('select[data-jenis]')) return;
-    const row = e.target.closest('.plg');
-    const p = A.pelanggan.find((x) => x.wa === row.dataset.wa);
-    e.target.disabled = true;
-    try {
-      const r = await call('apiSimpanPelanggan', PIN, { wa: p.wa, nama: p.nama, jenis: e.target.value });
-      p.jenis = e.target.value;
-      toast(`${p.nama} sekarang memakai harga ${p.jenis}.` + (r && r.diperbarui ? ` ${r.diperbarui} pesanan belum dibayar ikut disesuaikan.` : ''));
-      if (r && r.diperbarui) muat();
-    } catch (err) {
-      toast(errMsg(err), true);
-      e.target.value = p.jenis;
+      notif(errMsg(e));
     } finally {
-      e.target.disabled = false;
+      sibuk = false;
+      $('btnKirim').textContent = label;
+      if (D) updateBar();
+    }
+  }
+
+  function tampilSelesai(r, caraBayar) {
+    const infoWa = r.waTerkirim
+      ? 'Rincian pesanan dan link untuk mengubahnya sudah kami kirim ke WhatsApp Anda.'
+      : 'WhatsApp belum terkirim. Simpan link di bawah ini untuk melihat atau mengubah pesanan.';
+    $('selesai').innerHTML = `
+      <div class="ringkas">
+        <h2 style="margin-top:0">${r.edit ? 'Perubahan tersimpan' : 'Pesanan terkirim'}</h2>
+        <p>No. pesanan <strong>${esc(r.id)}</strong></p>
+        <div class="total-besar">${rp(r.total)}</div>
+        ${kotakBayar(caraBayar, r.total, r.id)}
+        <p>${esc(infoWa)}</p>
+        <p class="muted">Kami akan mengabari lewat WhatsApp saat pesanan dikonfirmasi.</p>
+        <p style="margin-top:16px"><a class="btn" href="${esc(r.editUrl)}" target="_top">Lihat atau ubah pesanan</a></p>
+      </div>`;
+    $('infoStok').textContent = '';
+    tampil('selesai');
+    window.scrollTo({ top: 0 });
+  }
+
+  async function batal() {
+    if (!confirm('Batalkan pesanan ini? Pesanan yang dibatalkan tidak bisa diaktifkan kembali dari halaman ini.')) return;
+    $('btnBatal').disabled = true;
+    try {
+      await call('apiBatalkanPesanan', D.order.id, INIT.t);
+      await muat();
+      notif('Pesanan sudah dibatalkan.', 'ok');
+    } catch (e) {
+      notif(errMsg(e));
+    } finally {
+      $('btnBatal').disabled = false;
+    }
+  }
+
+  $('produk').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-k]');
+    if (!b) return;
+    setQty(b.dataset.k, (qty[b.dataset.k] || 0) + Number(b.dataset.d));
+  });
+  $('produk').addEventListener('change', (e) => {
+    if (e.target.matches('input[data-k]')) setQty(e.target.dataset.k, e.target.value);
+  });
+  $('wa').addEventListener('change', async () => {
+    if (mode === 'edit') return;
+    try {
+      const r = await call('apiCekPelanggan', $('wa').value);
+      if (r.valid) setJenis(r.jenisHarga);
+    } catch (e) { /* abaikan, harga tetap dihitung ulang di server */ }
+  });
+  $('pay').addEventListener('change', renderInfoBayar);
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-salin]');
+    if (!b) return;
+    try {
+      await navigator.clipboard.writeText(b.dataset.salin);
+      b.textContent = 'Nomor rekening tersalin ✓';
+    } catch (err) {
+      window.prompt('Salin nomor rekening:', b.dataset.salin);
     }
   });
-
-  $('tabPesanan').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-act]');
-    if (!btn) return;
-    const card = btn.closest('.order');
-    if (btn.dataset.act === 'simpan') simpanPesanan(card, btn);
-    if (btn.dataset.act === 'rincian') kirimRincian(card, btn);
-  });
-  $('tabPesanan').addEventListener('change', (e) => {
-    if (e.target.id === 'filterStatus') { filterStatus = e.target.value; renderPesanan(); }
-  });
-  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderTab(); }));
-  $('selKloter').addEventListener('change', (e) => { kloterId = e.target.value; muat(); });
-  $('btnMuat').addEventListener('click', () => { $('btnMuat').disabled = true; muat().finally(() => { $('btnMuat').disabled = false; }); });
-  $('btnLogin').addEventListener('click', login);
-  $('pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+  // Gambar QRIS gagal dimuat (file belum diunggah / link salah).
+  document.addEventListener('error', (e) => {
+    if (e.target && e.target.matches && e.target.matches('img.qris')) {
+      e.target.outerHTML = '<p class="pesan err">Gambar QRIS belum tersedia. Hubungi penjual lewat WhatsApp.</p>';
+    }
+  }, true);
+  $('btnKirim').addEventListener('click', kirim);
+  $('btnBatal').addEventListener('click', batal);
 
   muat();
 </script>
