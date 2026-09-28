@@ -575,8 +575,8 @@
       const btn = $('btnSimpanPlg');
       btn.disabled = true;
       try {
-        await call('apiSimpanPelanggan', PIN, { wa: $('pWa').value, nama: $('pNama').value, jenis: $('pJenis').value });
-        toast('Pelanggan tersimpan.');
+        const r = await call('apiSimpanPelanggan', PIN, { wa: $('pWa').value, nama: $('pNama').value, jenis: $('pJenis').value });
+        toast('Pelanggan tersimpan.' + (r && r.diperbarui ? ` ${r.diperbarui} pesanan belum dibayar ikut disesuaikan harganya.` : ''));
         await muat();
       } catch (e) {
         toast(errMsg(e), true);
@@ -598,9 +598,10 @@
     const p = A.pelanggan.find((x) => x.wa === row.dataset.wa);
     e.target.disabled = true;
     try {
-      await call('apiSimpanPelanggan', PIN, { wa: p.wa, nama: p.nama, jenis: e.target.value });
+      const r = await call('apiSimpanPelanggan', PIN, { wa: p.wa, nama: p.nama, jenis: e.target.value });
       p.jenis = e.target.value;
-      toast(`${p.nama} sekarang memakai harga ${p.jenis}.`);
+      toast(`${p.nama} sekarang memakai harga ${p.jenis}.` + (r && r.diperbarui ? ` ${r.diperbarui} pesanan belum dibayar ikut disesuaikan.` : ''));
+      if (r && r.diperbarui) muat();
     } catch (err) {
       toast(errMsg(err), true);
       e.target.value = p.jenis;
