@@ -63,6 +63,13 @@
     .ringkas ul { padding-left: 18px; margin: 8px 0; }
     .ringkas .total-besar { font-family: var(--judul); font-weight: 800; font-size: 1.5rem; }
     .aksi-bawah { margin-top: 28px; }
+    .bayar { border: 2px solid var(--kentang); background: var(--kentang-muda); border-radius: 14px; padding: 14px 16px; margin: 16px 0; }
+    .bayar h3 { margin-bottom: 6px; }
+    .bayar img.qris { display: block; width: 100%; max-width: 320px; margin: 12px auto; background: #fff; border-radius: 10px; padding: 8px; }
+    .bayar .rek { font-family: var(--judul); font-weight: 800; font-size: 1.25rem; margin: 4px 0; word-break: break-word; }
+    .bayar .baris-aksi { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .bayar .baris-aksi a, .bayar .baris-aksi button { padding: 9px 14px; font-size: 0.9rem; text-decoration: none; border-radius: 10px; font-weight: 700; }
+    .petunjuk { margin-top: 10px; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -104,7 +111,7 @@
 
       <h2>Cara bayar</h2>
       <div class="pay" id="pay" role="radiogroup" aria-label="Cara bayar"></div>
-      <p class="muted">Pembayaran dilakukan setelah pesanan dikonfirmasi.</p>
+      <div id="infoBayarPilih"></div>
 
       <div class="aksi-bawah hidden" id="aksiEdit">
         <button type="button" class="btn-ghost" id="btnBatal">Batalkan pesanan</button>
@@ -306,10 +313,82 @@
     $('barTotal').textContent = rp(total);
     $('barKet').textContent = jumlah ? `${jumlah} item, sekitar ${kg(totalKg())} kg` : 'Belum ada pesanan';
     $('btnKirim').disabled = !jumlah || sibuk;
+    renderInfoBayar();
     if (D.kloter) {
       const bag = D.produk.filter((p) => isPaket(p.kode)).map((p) => `${p.nama} ${maksTambah(p.kode)} pcs`);
       $('infoStok').textContent = 'Sisa stok: ' + bag.join(', ');
     }
+  }
+
+  function jenisBayar(m) {
+    m = String(m || '').toLowerCase();
+    if (m.includes('qris')) return 'qris';
+    if (m.includes('transfer') || m.includes('bca')) return 'transfer';
+    if (m.includes('cash') || m.includes('tunai') || m.includes('cod')) return 'cash';
+    return '';
+  }
+
+  // Ambil nomor rekening (deretan angka terpanjang) dari teks INFO_TRANSFER.
+  const nomorRek = (t) => ((String(t || '').match(/\d[\d\s.-]{5,}\d/) || [''])[0]).replace(/\D/g, '');
+
+  // Kotak instruksi pembayaran sesuai cara bayar.
+  function kotakBayar(metode, total, idPesanan) {
+    const b = (D && D.bayar) || {};
+    const j = jenisBayar(metode);
+    let tombolBukti = '';
+    if (idPesanan && b.waPenjual && j !== 'cash') {
+      const teks = `Halo, berikut bukti bayar pesanan ${idPesanan} sebesar ${rp(total)}.`;
+      tombolBukti = `<a class="btn-ghost" href="https://wa.me/${esc(b.waPenjual)}?text=${encodeURIComponent(teks)}" target="_blank" rel="noopener">Kirim bukti bayar via WA</a>`;
+    }
+    if (j === 'qris') {
+      if (!b.qris) return `<div class="bayar"><h3>Bayar dengan QRIS</h3><p>Kode QRIS akan dikirim penjual lewat WhatsApp.</p></div>`;
+      return `
+        <div class="bayar">
+          <h3>Bayar dengan QRIS</h3>
+          <p>Scan kode di bawah dengan aplikasi e-wallet atau m-banking, lalu bayar <strong>${rp(total)}</strong>.</p>
+          <img class="qris" src="${esc(b.qris)}" alt="Kode QRIS pembayaran">
+          <div class="baris-aksi">
+            <a class="btn-ghost" href="${esc(b.qris)}" download="QRIS-Kering-Kentang-Tara.png">Simpan gambar QRIS</a>
+            ${tombolBukti}
+          </div>
+          <p class="muted" style="margin-top:8px">Memakai HP yang sama? Simpan gambarnya, lalu pilih "scan dari galeri" di aplikasi pembayaran.</p>
+        </div>`;
+    }
+    if (j === 'transfer') {
+      const rek = nomorRek(b.transfer);
+      return `
+        <div class="bayar">
+          <h3>Transfer bank</h3>
+          <p>Transfer <strong>${rp(total)}</strong> ke rekening:</p>
+          <div class="rek">${esc(b.transfer || 'Nomor rekening akan dikirim penjual lewat WhatsApp.')}</div>
+          <div class="baris-aksi">
+            ${rek ? `<button type="button" class="btn-ghost" data-salin="${esc(rek)}">Salin nomor rekening</button>` : ''}
+            ${tombolBukti}
+          </div>
+        </div>`;
+    }
+    if (j === 'cash') {
+      return `<div class="bayar"><h3>Bayar tunai</h3><p>${esc(b.cash)}</p></div>`;
+    }
+    return b.lain ? `<div class="bayar"><h3>Pembayaran</h3><p>${esc(b.lain)}</p></div>` : '';
+  }
+
+  // Petunjuk di bawah pilihan cara bayar pada form.
+  function renderInfoBayar() {
+    const el = $('infoBayarPilih');
+    if (!el || !D) return;
+    const pilih = document.querySelector('input[name=bayar]:checked');
+    if (!pilih) { el.innerHTML = ''; return; }
+    const total = D.produk.reduce((a, p) => a + (qty[p.kode] || 0) * harga(p), 0);
+    if (mode === 'edit' && D.order.statusBayar === 'Belum bayar') {
+      el.innerHTML = kotakBayar(pilih.value, total, D.order.id);
+      return;
+    }
+    const j = jenisBayar(pilih.value);
+    const teks = j === 'qris' ? 'Kode QRIS akan tampil setelah pesanan dikirim.'
+      : j === 'transfer' ? 'Nomor rekening tujuan akan tampil setelah pesanan dikirim.'
+      : j === 'cash' ? (D.bayar && D.bayar.cash) : '';
+    el.innerHTML = teks ? `<p class="petunjuk muted">${esc(teks)}</p>` : '';
   }
 
   function tampilReadonly() {
@@ -326,6 +405,7 @@
         <p>Status: <strong>${esc(o.status === 'Baru' ? 'Menunggu konfirmasi' : o.status)}</strong>, ${esc(o.statusBayar.toLowerCase())}</p>
         <ul>${o.items.map((i) => `<li>${esc(i.nama)} ${i.qty} x ${ribuan(i.harga)}</li>`).join('')}</ul>
         <div class="total-besar">${rp(o.total)}</div>
+        ${o.statusBayar === 'Belum bayar' && o.status !== 'Dibatalkan' ? kotakBayar(o.caraBayar, o.total, o.id) : ''}
         <p class="muted">${esc(alasan)}</p>
       </div>`;
     tampil('readonly');
@@ -355,7 +435,7 @@
     notif('');
     try {
       const r = await call('apiSubmitOrder', data);
-      tampilSelesai(r);
+      tampilSelesai(r, data.caraBayar);
     } catch (e) {
       notif(errMsg(e));
     } finally {
@@ -365,7 +445,7 @@
     }
   }
 
-  function tampilSelesai(r) {
+  function tampilSelesai(r, caraBayar) {
     const infoWa = r.waTerkirim
       ? 'Rincian pesanan dan link untuk mengubahnya sudah kami kirim ke WhatsApp Anda.'
       : 'WhatsApp belum terkirim. Simpan link di bawah ini untuk melihat atau mengubah pesanan.';
@@ -374,6 +454,7 @@
         <h2 style="margin-top:0">${r.edit ? 'Perubahan tersimpan' : 'Pesanan terkirim'}</h2>
         <p>No. pesanan <strong>${esc(r.id)}</strong></p>
         <div class="total-besar">${rp(r.total)}</div>
+        ${kotakBayar(caraBayar, r.total, r.id)}
         <p>${esc(infoWa)}</p>
         <p class="muted">Kami akan mengabari lewat WhatsApp saat pesanan dikonfirmasi.</p>
         <p style="margin-top:16px"><a class="btn" href="${esc(r.editUrl)}" target="_top">Lihat atau ubah pesanan</a></p>
@@ -412,6 +493,23 @@
       if (r.valid) setJenis(r.jenisHarga);
     } catch (e) { /* abaikan, harga tetap dihitung ulang di server */ }
   });
+  $('pay').addEventListener('change', renderInfoBayar);
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-salin]');
+    if (!b) return;
+    try {
+      await navigator.clipboard.writeText(b.dataset.salin);
+      b.textContent = 'Nomor rekening tersalin ✓';
+    } catch (err) {
+      window.prompt('Salin nomor rekening:', b.dataset.salin);
+    }
+  });
+  // Gambar QRIS gagal dimuat (file belum diunggah / link salah).
+  document.addEventListener('error', (e) => {
+    if (e.target && e.target.matches && e.target.matches('img.qris')) {
+      e.target.outerHTML = '<p class="pesan err">Gambar QRIS belum tersedia. Hubungi penjual lewat WhatsApp.</p>';
+    }
+  }, true);
   $('btnKirim').addEventListener('click', kirim);
   $('btnBatal').addEventListener('click', batal);
 
