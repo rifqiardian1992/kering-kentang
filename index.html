@@ -188,6 +188,7 @@
       return;
     }
     qty = {};
+    BASE = null;
     if (D.toko) { $('namaToko').textContent = D.toko; document.title = 'Pesan ' + D.toko; }
     $('infoKloter').textContent = D.kloter ? D.kloter.nama : '';
 
@@ -241,8 +242,9 @@
     let perlu = bulat3(pakai.eceranKg - (k.stok.ADJ || 0));
     // Lebihan produksi (pcs toples) dipakai untuk pesanan toples di atas jumlah dasar.
     const lebih = Math.max(0, k.stok.LEBIH || 0);
+    let pakaiLebih = 0;
     if (lebih > 0 && berat.LEBIH > 0) {
-      const pakaiLebih = Math.min(lebih, Math.max(0, (pakai.toples || 0) - (k.stok.DASAR || 0)));
+      pakaiLebih = Math.min(lebih, Math.max(0, (pakai.toples || 0) - (k.stok.DASAR || 0)));
       perlu = bulat3(perlu - pakaiLebih * berat.LEBIH);
     }
     k.urutan.forEach((x) => {
@@ -254,22 +256,52 @@
     const lepas = perlu < 0 ? -perlu : 0;
     let kgEceran = lepas;
     D.paket.forEach((x) => { sisa[x] = Math.max(0, bebas[x]) - buka[x]; kgEceran += sisa[x] * berat[x]; });
-    return { ok: !kurangPaket.length && perlu <= 1e-9, sisa, kgEceran: bulat3(kgEceran) };
+    return { ok: !kurangPaket.length && perlu <= 1e-9, sisa, lepas: bulat3(lepas), sisaLebih: lebih - pakaiLebih, kgEceran: bulat3(kgEceran) };
   }
+
+  // Sama dengan alokasiTambah_ di Code.gs: pesanan baru hanya memakai kemasan yang masih utuh
+  // setelah pesanan lain (kemasan yang sudah terpakai untuk toples/pouch tidak bisa diambil lagi).
+  function alokasiTambah(base, baru) {
+    const berat = D.kloter.berat;
+    const sisa = {};
+    D.paket.forEach((x) => { sisa[x] = base.sisa[x] - (baru[x] || 0); });
+    const kurangPaket = D.paket.filter((x) => sisa[x] < 0);
+    let perlu = bulat3(baru.eceranKg || 0);
+    const dariLebih = berat.LEBIH > 0 ? Math.min(Math.max(0, base.sisaLebih || 0), baru.toples || 0) : 0;
+    perlu = bulat3(perlu - dariLebih * (berat.LEBIH || 0));
+    let lepas = base.lepas;
+    const dariLepas = Math.min(lepas, Math.max(0, perlu));
+    lepas = bulat3(lepas - dariLepas);
+    perlu = bulat3(perlu - dariLepas);
+    D.kloter.urutan.forEach((x) => {
+      if (perlu <= 1e-9 || sisa[x] <= 0 || !(berat[x] > 0)) return;
+      const n = Math.min(sisa[x], Math.ceil(perlu / berat[x] - 1e-9));
+      sisa[x] -= n;
+      perlu = bulat3(perlu - n * berat[x]);
+    });
+    return { ok: !kurangPaket.length && perlu <= 1e-9 };
+  }
+
+  let BASE = null; // alokasi pesanan lain (dihitung sekali per muat halaman)
 
   function statusStok(ubah) {
     const k = D.kloter;
-    const pakai = { eceranKg: k.pakaiLain.eceranKg, toples: k.pakaiLain.toples || 0 };
-    D.paket.forEach((x) => { pakai[x] = k.pakaiLain[x]; });
+    if (!BASE) {
+      const lain = { eceranKg: k.pakaiLain.eceranKg, toples: k.pakaiLain.toples || 0 };
+      D.paket.forEach((x) => { lain[x] = k.pakaiLain[x]; });
+      BASE = alokasi(lain);
+    }
+    const baru = { eceranKg: 0, toples: 0 };
+    D.paket.forEach((x) => { baru[x] = 0; });
     const q = Object.assign({}, qty, ubah || {});
     D.produk.forEach((p) => {
       const n = q[p.kode] || 0;
       if (!n) return;
-      if (isPaket(p.kode)) pakai[p.kode] += n;
-      else pakai.eceranKg += n * p.berat;
-      if (p.kode === D.kodeLebih) pakai.toples += n;
+      if (isPaket(p.kode)) baru[p.kode] += n;
+      else baru.eceranKg += n * p.berat;
+      if (p.kode === D.kodeLebih) baru.toples += n;
     });
-    return alokasi(pakai);
+    return alokasiTambah(BASE, baru);
   }
 
   const bisaJadi = (kode, n) => statusStok({ [kode]: n }).ok;
